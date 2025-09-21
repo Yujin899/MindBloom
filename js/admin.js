@@ -158,7 +158,7 @@ function setupEventListeners() {
     
     // Handle back to home
     document.getElementById('signOutBtn').addEventListener('click', () => {
-        window.location.href = 'index.html';
+        window.location.href = './index.html';
     });
 }
 

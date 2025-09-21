@@ -37,7 +37,7 @@ googleSignInBtn.addEventListener('click', async () => {
         }
 
         // Redirect to the main page after successful sign-in
-        window.location.href = '/src/index.html';
+        window.location.href = './index.html';
     } catch (error) {
         console.error("Error during sign in:", error);
         // You can add proper error handling here (e.g., showing an error message to the user)

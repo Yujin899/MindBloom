@@ -211,7 +211,7 @@ onAuthStateChanged(auth, async (user) => {
             allowOutsideClick: false,
             backdrop: 'rgba(0, 0, 0, 0.4)'
         });
-        window.location.href = 'auth.html';
+        window.location.href = './auth.html';
     }
 });
 
@@ -407,7 +407,7 @@ async function initializeQuiz() {
     prevBtn.addEventListener('click', showPreviousQuestion);
     nextBtn.addEventListener('click', handleNextButton);
     reviewBtn.addEventListener('click', reviewQuiz);
-    finishBtn.addEventListener('click', () => window.location.href = '/src/index.html');
+    finishBtn.addEventListener('click', () => window.location.href = './index.html');
 }
 
 function createQuestionNav() {

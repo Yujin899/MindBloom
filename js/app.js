@@ -19,7 +19,7 @@ export function checkAuth() {
             if (user) {
                 resolve(user);
             } else {
-                window.location.href = '/src/auth.html';
+                window.location.href = 'auth.html';
                 reject('User not authenticated');
             }
         });
@@ -260,7 +260,7 @@ function createQuizItem(quiz, subjectId) {
         e.stopPropagation(); // Prevent accordion toggle
         console.log('Navigating to quiz:', quiz.id, 'in subject:', subjectId);
         // Navigate to quiz page with both quiz ID and subject ID
-        const quizUrl = `quiz.html?id=${quiz.id}&subject=${subjectId}`;
+        const quizUrl = `./quiz.html?id=${quiz.id}&subject=${subjectId}`;
         console.log('Quiz URL:', quizUrl);
         window.location.href = quizUrl;
     });
