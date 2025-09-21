@@ -62,9 +62,14 @@ function showError(message) {
 async function initializeApp(user) {
     showLoadingState();
     try {
-        // Update user info in header
-        userAvatar.src = user.photoURL || '/path/to/default-avatar.png';
-        userName.textContent = user.displayName;
+        // Check if we're on the main page by looking for required elements
+        const isMainPage = document.getElementById('subjectsAccordion') !== null;
+        
+        // Update user info in header if elements exist
+        if (userAvatar && userName) {
+            userAvatar.src = user.photoURL || '/path/to/default-avatar.png';
+            userName.textContent = user.displayName;
+        }
         
         // Check if user is admin
         const adminPanelLink = document.getElementById('adminPanelLink');
@@ -75,42 +80,50 @@ async function initializeApp(user) {
             // Add other admin emails here
         ];
         
-        if (adminEmails.includes(userEmail)) {
+        if (adminPanelLink && adminEmails.includes(userEmail)) {
             adminPanelLink.classList.remove('hidden');
             adminPanelLink.classList.add('flex');
-        } else {
+        } else if (adminPanelLink) {
             adminPanelLink.classList.add('hidden');
             adminPanelLink.classList.remove('flex');
         }
         
         // Handle avatar click
-        userAvatar.addEventListener('click', (e) => {
-            e.stopPropagation();
-            userDropdown.classList.toggle('hidden');
-        });
+        if (userAvatar && userDropdown) {
+            userAvatar.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userDropdown.classList.toggle('hidden');
+            });
+        }
         
         // Handle sign out
-        signOutBtn.addEventListener('click', async () => {
-            try {
-                showLoadingState();
-                await signOut(auth);
-                window.location.href = 'auth.html';
-            } catch (error) {
-                console.error('Error signing out:', error);
-                showError('Failed to sign out. Please try again.');
-                hideLoadingState();
-            }
-        });
+        if (signOutBtn) {
+            signOutBtn.addEventListener('click', async () => {
+                try {
+                    showLoadingState();
+                    await signOut(auth);
+                    window.location.href = 'auth.html';
+                } catch (error) {
+                    console.error('Error signing out:', error);
+                    showError('Failed to sign out. Please try again.');
+                    hideLoadingState();
+                }
+            });
+        }
         
         // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!userAvatar.contains(e.target)) {
-                userDropdown.classList.add('hidden');
-            }
-        });
+        if (userAvatar && userDropdown) {
+            document.addEventListener('click', (e) => {
+                if (!userAvatar.contains(e.target)) {
+                    userDropdown.classList.add('hidden');
+                }
+            });
+        }
         
-        // Fetch and display subjects
-        await loadSubjects();
+        // Only load subjects if we're on the main page
+        if (isMainPage) {
+            await loadSubjects();
+        }
     } catch (error) {
         console.error('Error initializing app:', error);
         showError('Failed to initialize the app. Please refresh the page.');
@@ -120,6 +133,11 @@ async function initializeApp(user) {
 }
 
 async function loadSubjects() {
+    // If subjectsAccordion doesn't exist, we're probably on a different page
+    if (!subjectsAccordion) {
+        return;
+    }
+
     try {
         // Show loading skeleton while fetching subjects
         subjectsAccordion.innerHTML = Array(3).fill(0).map(() => `
