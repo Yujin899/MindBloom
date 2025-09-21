@@ -1,4 +1,5 @@
-import { auth, db } from '../js/firebase-config.js';
+import { auth, db } from './firebase-config.js';
+import { checkAuth } from './app.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
 import { doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
@@ -350,6 +351,8 @@ async function loadQuiz() {
 
 async function initializeQuiz() {
     try {
+        // Check authentication before proceeding
+        await checkAuth();
         console.log('Initializing quiz UI...');
         
         // Initialize quiz UI

@@ -11,15 +11,26 @@ const subjectsAccordion = document.getElementById('subjectsAccordion');
 const subjectCardTemplate = document.getElementById('subjectCardTemplate');
 const quizItemTemplate = document.getElementById('quizItemTemplate');
 
-// Check authentication state
-onAuthStateChanged(auth, (user) => {
-    if (user) {
-        // User is signed in
-        initializeApp(user);
-    } else {
-        // User is signed out, redirect to auth page
-        window.location.href = '/src/auth.html';
-    }
+// Authentication check function
+export function checkAuth() {
+    return new Promise((resolve, reject) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            unsubscribe(); // Stop listening immediately
+            if (user) {
+                resolve(user);
+            } else {
+                window.location.href = '/src/auth.html';
+                reject('User not authenticated');
+            }
+        });
+    });
+}
+
+// Check authentication state and initialize app
+checkAuth().then(user => {
+    initializeApp(user);
+}).catch(error => {
+    console.log('Authentication required:', error);
 });
 
 // UI Helper Functions
