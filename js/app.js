@@ -26,11 +26,25 @@ export function checkAuth() {
     });
 }
 
+// Get references to loading and main content elements
+const initialLoadingScreen = document.getElementById('initialLoadingScreen');
+const mainContent = document.getElementById('mainContent');
+
+// Function to show/hide the main content
+function toggleMainContent(show) {
+    if (initialLoadingScreen && mainContent) {
+        initialLoadingScreen.style.display = show ? 'none' : 'flex';
+        mainContent.classList.toggle('hidden', !show);
+    }
+}
+
 // Check authentication state and initialize app
 checkAuth().then(user => {
     initializeApp(user);
+    toggleMainContent(true); // Show main content after authentication
 }).catch(error => {
     console.log('Authentication required:', error);
+    // Keep the loading screen visible until redirect completes
 });
 
 // UI Helper Functions

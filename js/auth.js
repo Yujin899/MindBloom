@@ -1,6 +1,14 @@
 import { auth, db } from './firebase-config.js';
-import { GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
+import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
 import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+// Check if user is already authenticated
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        // User is already signed in, redirect to main page
+        window.location.href = './index.html';
+    }
+});
 
 // Initialize Google Auth Provider
 const provider = new GoogleAuthProvider();
