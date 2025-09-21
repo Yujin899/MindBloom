@@ -1,0 +1,158 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="./output.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-black text-white min-h-screen">
+  <div class="container max-w-6xl mx-auto p-4">
+    <!-- Quiz Header -->
+    <header class="mb-8">
+      <h1 id="quizTitle" class="text-3xl font-bold text-green-400 mb-2">Loading Quiz...</h1>
+      <p id="quizDescription" class="text-gray-400 mb-4">Loading description...</p>
+      
+      <!-- Timer, Score, and Progress -->
+      <div class="flex flex-col gap-4">
+        <div class="flex justify-between items-center bg-neutral-800 p-4 rounded-xl">
+          <!-- Drawer Toggle Button -->
+          <button id="drawerToggle" class="lg:hidden flex items-center gap-2 text-green-400 hover:text-green-300 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+            <span>Questions</span>
+          </button>
+
+          <div class="flex items-center gap-4">
+            <div class="text-green-400">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div id="timer" class="text-xl font-mono">30:00</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-gray-400">Question</span>
+            <span id="currentQuestion" class="text-green-400 font-bold">1</span>
+            <span class="text-gray-400">of</span>
+            <span id="totalQuestions" class="text-gray-400">10</span>
+          </div>
+        </div>
+
+        <!-- Score Section -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-neutral-800 p-4 rounded-xl">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <span class="text-gray-400">Current Score</span>
+              </div>
+              <div id="currentScore" class="text-xl font-bold text-green-400">0</div>
+            </div>
+            <div id="streakBonus" class="text-sm text-gray-400 mt-1 hidden">
+              +50 Streak Bonus!
+            </div>
+          </div>
+
+          <div class="bg-neutral-800 p-4 rounded-xl">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" clip-rule="evenodd"/>
+                </svg>
+                <span class="text-gray-400">High Score</span>
+              </div>
+              <div id="highScore" class="text-xl font-bold text-yellow-400">0</div>
+            </div>
+            <div id="highScoreHolder" class="text-sm text-gray-400 mt-1">
+              No high score yet
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Quiz Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <!-- Question Navigation Drawer -->
+      <div id="questionDrawer" class="fixed inset-0 lg:relative lg:inset-auto z-50 transform transition-transform duration-300 ease-in-out translate-x-[-100%] lg:translate-x-0">
+        <!-- Backdrop -->
+        <div id="drawerBackdrop" class="fixed inset-0 bg-black bg-opacity-50 lg:hidden"></div>
+        
+        <!-- Drawer Content -->
+        <div class="relative w-64 h-full max-w-[80vw] bg-neutral-900 lg:bg-transparent overflow-y-auto">
+          <div class="sticky top-0 flex justify-between items-center p-4 bg-neutral-800 lg:hidden">
+            <h2 class="text-lg font-semibold">Questions</h2>
+            <button id="drawerClose" class="text-gray-400 hover:text-white">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <div class="p-4">
+            <div id="questionNav" class="grid grid-cols-3 gap-2">
+              <!-- Question numbers will be inserted here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Question and Answers -->
+      <div class="lg:col-span-3">
+        <div class="bg-neutral-800 p-6 rounded-xl">
+          <div id="questionContainer" class="space-y-6">
+            <h3 id="questionText" class="text-xl font-semibold">Loading question...</h3>
+            
+            <div id="answerOptions" class="space-y-3">
+              <!-- Answer options will be inserted here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="flex justify-between mt-6">
+          <button id="prevBtn" class="px-6 py-3 bg-neutral-700 text-white rounded-xl hover:bg-neutral-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            Previous
+          </button>
+          <button id="nextBtn" class="px-6 py-3 bg-green-400 text-black font-semibold rounded-xl hover:bg-green-500 transition-colors">
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quiz Completion Modal -->
+    <div id="completionModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+      <div class="bg-neutral-800 p-8 rounded-xl max-w-md w-full mx-4">
+        <h2 class="text-2xl font-bold text-green-400 mb-4">Quiz Completed!</h2>
+        <p class="text-gray-400 mb-4">You have completed the quiz. Here are your results:</p>
+        
+        <div class="bg-neutral-700 p-4 rounded-lg mb-6">
+          <div class="flex justify-between mb-2">
+            <span>Score:</span>
+            <span id="finalScore" class="text-green-400 font-bold">0/0</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Time Taken:</span>
+            <span id="timeTaken" class="font-mono">00:00</span>
+          </div>
+        </div>
+
+        <div class="flex gap-4">
+          <button id="reviewBtn" class="flex-1 px-4 py-3 bg-neutral-700 text-white rounded-xl hover:bg-neutral-600 transition-colors">
+            Review Answers
+          </button>
+          <button id="finishBtn" class="flex-1 px-4 py-3 bg-green-400 text-black font-semibold rounded-xl hover:bg-green-500 transition-colors">
+            Finish
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="../js/quiz.js"></script>
+</body>
+</html>

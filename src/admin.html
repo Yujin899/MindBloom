@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindBloom Admin Panel</title>
+    <link href="./output.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js';
+        import { getFirestore, collection, getDocs, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js';
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+             apiKey: "AIzaSyD2unswHpAyZnqCcfpPvmN23yP0LKEO6KU",
+  authDomain: "molarmind-c7de4.firebaseapp.com",
+  projectId: "molarmind-c7de4",
+  storageBucket: "molarmind-c7de4.firebasestorage.app",
+  messagingSenderId: "224128758387",
+  appId: "1:224128758387:web:80110d5c24c15beabb7006",
+  measurementId: "G-YZM4LLHS7L"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Make db available globally
+        window.db = db;
+        window.collection = collection;
+        window.getDocs = getDocs;
+        window.doc = doc;
+        window.setDoc = setDoc;
+    </script>
+</head>
+<body class="bg-black min-h-screen text-white">
+    <!-- Navigation -->
+    <nav class="bg-neutral-900/80 backdrop-blur-sm shadow-xl sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">MindBloom Admin</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="signOutBtn" class="px-4 py-2 bg-neutral-800 text-gray-100 rounded-lg hover:bg-neutral-700 hover:text-white transition-all duration-300 shadow-lg hover:shadow-green-500/20">
+                        Back to Home
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="block">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
+                <!-- Add Subject -->
+                <div class="bg-neutral-800/90 backdrop-blur-sm rounded-xl shadow-xl p-6 sm:p-8 transition-all duration-300 hover:shadow-green-500/10 border border-neutral-700/50">
+                    <h3 class="text-xl font-semibold mb-6 bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Add New Subject</h3>
+                    <form id="subjectForm">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Subject ID</label>
+                            <input type="text" id="subjectId" class="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-800 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400/50 focus:border-green-400/50 placeholder-gray-500 transition-all duration-300" placeholder="e.g., microbiology" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-100 mb-2">Subject Name</label>
+                                                        <input type="text" id="subjectName" class="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-800 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400/50 focus:border-green-400/50 placeholder-gray-500 transition-all duration-300" placeholder="e.g., Microbiology" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-100 mb-2">Description</label>
+                            <input type="text" id="subjectDescription" class="w-full px-3 py-2 bg-neutral-900 border border-neutral-700 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400" placeholder="e.g., Study of microorganisms" required>
+                        </div>
+                        <button type="submit" class="w-full px-4 py-3 bg-gradient-to-r from-green-400 to-emerald-500 text-black font-semibold rounded-lg hover:from-green-500 hover:to-emerald-600 transform transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25">
+                            Add Subject
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Add Quiz -->
+                <div class="bg-neutral-800/90 backdrop-blur-sm rounded-xl shadow-xl p-6 sm:p-8 transition-all duration-300 hover:shadow-green-500/10 border border-neutral-700/50">
+                    <h3 class="text-xl font-semibold mb-6 bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Add New Quiz</h3>
+                    <form id="quizForm">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Subject</label>
+                            <select id="quizSubject" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400" required>
+                                <option value="">Select Subject</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Quiz ID</label>
+                            <input type="text" id="quizId" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400" placeholder="e.g., lec3" required>
+                        </div>
+                        <div class="mb-4">
+                                                        <label class="block text-sm font-medium text-gray-100 mb-2" for="quizTitle">Quiz Title</label>
+                            <input type="text" id="quizTitle" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400" placeholder="e.g., Lecture 3: Cell Structure" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                            <input type="text" id="quizDescription" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400" placeholder="e.g., Basic concepts of cell biology" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Time Limit (minutes)</label>
+                            <input type="number" id="quizTimeLimit" class="w-full px-3 py-2 bg-neutral-700 border border-neutral-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-green-400" placeholder="30" min="1" max="180" value="30">
+                            <p class="text-xs text-gray-400 mt-2 ml-1 italic">Leave empty for default 30 minutes</p>
+                        </div>
+                        <button type="submit" class="w-full px-4 py-3 bg-gradient-to-r from-green-400 to-emerald-500 text-black font-semibold rounded-lg hover:from-green-500 hover:to-emerald-600 transform transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25">
+                            Add Quiz
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Upload Questions JSON -->
+                <div class="bg-neutral-800/90 backdrop-blur-sm rounded-xl shadow-xl p-6 sm:p-8 transition-all duration-300 hover:shadow-green-500/10 border border-neutral-700/50">
+                    <h3 class="text-xl font-semibold mb-6 bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">Upload Questions JSON</h3>
+                    <form id="questionsForm">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-100 mb-2">Select Quiz</label>
+                                                        <select id="questionsQuiz" class="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-800 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400/50 focus:border-green-400/50 transition-all duration-300" required>
+                                <option value="">Select Quiz</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-100 mb-2">JSON File</label>
+                                                        <input type="file" id="questionsFile" accept=".json" class="w-full px-4 py-3 bg-neutral-900/50 border border-neutral-800 text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400/50 focus:border-green-400/50 transition-all duration-300" required>
+                        </div>
+                        <button type="submit" class="w-full px-4 py-3 bg-gradient-to-r from-green-400 to-emerald-500 text-black font-semibold rounded-lg hover:from-green-500 hover:to-emerald-600 transform transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25">
+                            Upload Questions
+                        </button>
+                    </form>
+                    <div class="mt-4 p-4 bg-neutral-900 rounded-lg border border-neutral-700">
+                        <h4 class="font-semibold mb-2 text-gray-100">JSON Format Example:</h4>
+                        <div class="relative">
+                            <pre class="text-sm text-gray-100 overflow-x-auto scrollbar-thin scrollbar-thumb-green-400/20 scrollbar-track-neutral-800 max-w-full p-2 -mx-2"><code>{
+  "questions": [
+    {
+      "question": 
+        "What is the powerhouse of the cell?",
+      "options": [
+        "Nucleus",
+        "Mitochondria", 
+        "Ribosome",
+        "Golgi"
+      ],
+      "correctAnswer": 1
+    }
+  ]
+}</code></pre>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+        <script type="module" src="../js/admin.js"></script>
+    <script>
+        class AdminPanel {
+            constructor() {
+                this.init();
+            }
+
+            init() {
+                // Set up event listeners
+                document.getElementById('signOutBtn').addEventListener('click', () => window.location.href = 'index.html');
+                document.getElementById('subjectForm').addEventListener('submit', (e) => this.addSubject(e));
+                document.getElementById('quizForm').addEventListener('submit', (e) => this.addQuiz(e));
+                document.getElementById('questionsForm').addEventListener('submit', (e) => this.uploadQuestions(e));
+                
+                // Initialize UI
+                this.loadSubjects();
+                this.loadQuizzes();
+            }
+
+
+
+            async loadSubjects() {
+                try {
+                    const snapshot = await getDocs(collection(db, 'subjects'));
+                    const subjectSelect = document.getElementById('quizSubject');
+                    subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+                    
+                    snapshot.forEach(docSnap => {
+                        const option = document.createElement('option');
+                        option.value = docSnap.id;
+                        option.textContent = docSnap.data().name;
+                        subjectSelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error('Error loading subjects:', error);
+                }
+            }
+
+            async loadQuizzes() {
+                try {
+                    const snapshot = await getDocs(collection(db, 'subjects'));
+                    const quizSelect = document.getElementById('questionsQuiz');
+                    quizSelect.innerHTML = '<option value="">Select Quiz</option>';
+                    
+                    for (const subjectDoc of snapshot.docs) {
+                        const quizzesSnapshot = await getDocs(collection(db, 'subjects', subjectDoc.id, 'quizzes'));
+                        quizzesSnapshot.forEach(quizDoc => {
+                            const option = document.createElement('option');
+                            option.value = `${subjectDoc.id}/${quizDoc.id}`;
+                            option.textContent = `${subjectDoc.data().name} - ${quizDoc.data().title}`;
+                            quizSelect.appendChild(option);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading quizzes:', error);
+                }
+            }
+
+            async addSubject(e) {
+                e.preventDefault();
+                try {
+                    const subjectId = document.getElementById('subjectId').value;
+                    const subjectName = document.getElementById('subjectName').value;
+                    const subjectDescription = document.getElementById('subjectDescription').value;
+
+                    const subjectRef = doc(db, 'subjects', subjectId);
+                    await setDoc(subjectRef, {
+                        name: subjectName,
+                        description: subjectDescription
+                    });
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Subject added successfully!',
+                        background: '#171717',
+                        color: '#fff',
+                        confirmButtonColor: '#4ade80'
+                    });
+                    document.getElementById('subjectForm').reset();
+                    this.loadSubjects();
+                } catch (error) {
+                    console.error('Error adding subject:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Error adding subject: ' + error.message,
+                        background: '#171717',
+                        color: '#fff',
+                        confirmButtonColor: '#4ade80'
+                    });
+                }
+            }
+
+            async addQuiz(e) {
+                e.preventDefault();
+                try {
+                    const subjectId = document.getElementById('quizSubject').value;
+                    const quizId = document.getElementById('quizId').value;
+                    const quizTitle = document.getElementById('quizTitle').value;
+                    const quizDescription = document.getElementById('quizDescription').value;
+                    const timeLimit = parseInt(document.getElementById('quizTimeLimit').value) || 30;
+
+                    const quizRef = doc(db, 'subjects', subjectId, 'quizzes', quizId);
+                    await setDoc(quizRef, {
+                        title: quizTitle,
+                        description: quizDescription,
+                        timeLimit: timeLimit,
+                        questionCount: 0,
+                        questions: []
+                    });
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Quiz added successfully!',
+                        background: '#171717',
+                        color: '#fff',
+                        confirmButtonColor: '#4ade80'
+                    });
+                    document.getElementById('quizForm').reset();
+                    this.loadQuizzes();
+                } catch (error) {
+                    console.error('Error adding quiz:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Error adding quiz: ' + error.message,
+                        background: '#171717',
+                        color: '#fff',
+                        confirmButtonColor: '#4ade80'
+                    });
+                }
+            }
+
+            async uploadQuestions(e) {
+                e.preventDefault();
+                try {
+                    const file = document.getElementById('questionsFile').files[0];
+                    const quizPath = document.getElementById('questionsQuiz').value;
+                    
+                    if (!file || !quizPath) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Missing Information',
+                            text: 'Please select a file and quiz.',
+                            background: '#171717',
+                            color: '#fff',
+                            confirmButtonColor: '#4ade80'
+                        });
+                        return;
+                    }
+
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    
+                    if (!data.questions || !Array.isArray(data.questions)) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Invalid Format',
+                            text: 'Invalid JSON format. Please check the example.',
+                            background: '#171717',
+                            color: '#fff',
+                            confirmButtonColor: '#4ade80'
+                        });
+                        return;
+                    }
+
+                    const [subjectId, quizId] = quizPath.split('/');
+                    const quizRef = doc(db, 'subjects', subjectId, 'quizzes', quizId);
+                    
+                    await setDoc(quizRef, {
+                        questions: data.questions,
+                        questionCount: data.questions.length
+                    }, { merge: true });
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Questions uploaded successfully!',
+                        background: '#171717',
+                        color: '#fff',
+                        confirmButtonColor: '#4ade80'
+                    });
+                    document.getElementById('questionsForm').reset();
+                } catch (error) {
+                    console.error('Error uploading questions:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Error uploading questions: ' + error.message,
+                        background: '#171717',
+                        color: '#fff',
+                        confirmButtonColor: '#4ade80'
+                    });
+                }
+            }
+
+        }
+
+        // Initialize admin panel when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new AdminPanel();
+        });
+    </script>
+</body>
+</html>
