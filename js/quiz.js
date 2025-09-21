@@ -28,6 +28,28 @@ const sweetAlertDarkTheme = Swal.mixin({
     }
 });
 
+// DOM Elements for loading
+const quizLoadingScreen = document.getElementById('quizLoadingScreen');
+const quizContent = document.getElementById('quizContent');
+const loadingStatus = document.getElementById('loadingStatus');
+
+// Loading state management
+function updateLoadingStatus(message) {
+    if (loadingStatus) {
+        loadingStatus.textContent = message;
+    }
+}
+
+function hideLoading() {
+    if (quizLoadingScreen && quizContent) {
+        quizLoadingScreen.style.opacity = '0';
+        quizContent.style.opacity = '1';
+        setTimeout(() => {
+            quizLoadingScreen.style.display = 'none';
+        }, 300);
+    }
+}
+
 // Quiz state
 let quiz = null;
 let currentQuestionIndex = 0;
@@ -42,6 +64,51 @@ let streakCount = 0; // Track consecutive correct answers
 const SCORE_PER_CORRECT = 100;
 const STREAK_BONUS = 50; // Bonus points for consecutive correct answers
 const MAX_STREAK_BONUS = 500;
+
+// Initialize the quiz
+async function initializeQuiz() {
+    try {
+        updateLoadingStatus('Checking authentication...');
+        await checkAuth();
+        
+        updateLoadingStatus('Loading quiz data...');
+        const urlParams = new URLSearchParams(window.location.search);
+        const quizId = urlParams.get('id');
+        const subjectId = urlParams.get('subject');
+        
+        if (!quizId || !subjectId) {
+            throw new Error('Missing quiz or subject ID');
+        }
+        
+        updateLoadingStatus('Fetching quiz content...');
+        const quizDoc = await getDoc(doc(db, `subjects/${subjectId}/quizzes/${quizId}`));
+        if (!quizDoc.exists()) {
+            throw new Error('Quiz not found');
+        }
+        
+        quiz = { id: quizDoc.id, ...quizDoc.data() };
+        
+        updateLoadingStatus('Setting up quiz interface...');
+        await setupQuizUI();
+        
+        updateLoadingStatus('Loading previous scores...');
+        await loadHighScore(quizId);
+        
+        updateLoadingStatus('Ready to begin!');
+        setTimeout(hideLoading, 500); // Small delay to ensure smooth transition
+        
+    } catch (error) {
+        console.error('Error initializing quiz:', error);
+        sweetAlertDarkTheme.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to load the quiz. Please try again.',
+            confirmButtonText: 'Return to Home',
+        }).then(() => {
+            window.location.href = './index.html';
+        });
+    }
+}
 
 // Get high score from Firestore
 async function getHighScore(quizId) {
@@ -193,13 +260,14 @@ questionNav.addEventListener('click', (e) => {
 });
 
 // Check authentication and load quiz
-onAuthStateChanged(auth, async (user) => {
-    console.log('Auth state changed:', user ? 'logged in' : 'logged out');
-    if (user) {
-        try {
-            await loadQuiz();
-        } catch (error) {
-            console.error('Error in quiz initialization:', error);
+document.addEventListener('DOMContentLoaded', () => {
+    onAuthStateChanged(auth, async (user) => {
+        console.log('Auth state changed:', user ? 'logged in' : 'logged out');
+        if (user) {
+            try {
+                await initializeQuiz();
+            } catch (error) {
+                console.error('Error in quiz initialization:', error);
         }
     } else {
         await sweetAlertDarkTheme.fire({

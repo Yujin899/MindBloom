@@ -40,9 +40,13 @@ googleSignInBtn.addEventListener('click', async () => {
         } else {
             // Update last login time
             await setDoc(userDocRef, {
-                lastLogin: new Date().toISOString()
+                lastLogin: new Date().toISOString(),
+                lastLoginType: 'explicit'
             }, { merge: true });
         }
+
+        // Store a timestamp of when the user explicitly signed in
+        localStorage.setItem('lastExplicitSignIn', new Date().toISOString());
 
         // Redirect to the main page after successful sign-in
         window.location.href = './index.html';
