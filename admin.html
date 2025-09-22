@@ -9,7 +9,16 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js';
-        import { getFirestore, collection, getDocs, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, writeBatch, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js';
+
+        // Expose Firestore functions globally
+        window.collection = collection;
+        window.getDocs = getDocs;
+        window.doc = doc;
+        window.setDoc = setDoc;
+        window.updateDoc = updateDoc;
+        window.writeBatch = writeBatch;
+        window.deleteDoc = deleteDoc;
 
         // Your web app's Firebase configuration
         const firebaseConfig = {
@@ -43,15 +52,80 @@
                     <h1 class="text-2xl font-bold bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">MindBloom Admin</h1>
                 </div>
                 <div class="flex items-center space-x-4">
+                    <button id="manageAdminsBtn" class="px-4 py-2 bg-neutral-800 text-gray-100 rounded-lg hover:bg-neutral-700 hover:text-white transition-all duration-300 shadow-lg hover:shadow-blue-500/20">
+                        Manage Admins
+                    </button>
                     <button id="signOutBtn" class="px-4 py-2 bg-neutral-800 text-gray-100 rounded-lg hover:bg-neutral-700 hover:text-white transition-all duration-300 shadow-lg hover:shadow-green-500/20">
                         Back to Home
                     </button>
                 </div>
             </div>
-        </div>
-    </nav>
+    </div>
+</nav>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+<!-- Admin Management Modal -->
+<div id="adminManagementModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-neutral-900 rounded-xl p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-green-400">Manage Administrators</h2>
+            <button id="closeAdminModal" class="text-gray-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Users List -->
+        <div class="space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xl text-green-400">Users</h3>
+                <div class="relative">
+                    <input type="text" id="userSearch" placeholder="Search users..." 
+                           class="bg-neutral-800 border-none rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:ring-2 focus:ring-green-400">
+                </div>
+            </div>
+            
+            <div id="usersList" class="space-y-2 mt-4">
+                <!-- Users will be populated here -->
+            </div>
+        </div>
+        
+        <!-- Current Admins -->
+        <div class="mt-8 space-y-4">
+            <h3 class="text-xl text-green-400">Current Administrators</h3>
+            <div id="adminsList" class="space-y-2">
+                <!-- Admins will be populated here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Content Management Section -->
+<div class="container mx-auto p-8">
+    <div class="bg-neutral-900 rounded-xl p-6 mb-8">
+        <h2 class="text-2xl font-bold text-green-400 mb-4">Content Management</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Subjects Management -->
+            <div class="space-y-4">
+                <h3 class="text-xl text-green-400">Manage Subjects</h3>
+                <div id="subjectsList" class="space-y-2">
+                    <!-- Subjects will be populated here -->
+                </div>
+            </div>
+            
+            <!-- Quizzes Management -->
+            <div class="space-y-4">
+                <h3 class="text-xl text-green-400">Manage Quizzes</h3>
+                <select id="subjectSelect" class="w-full bg-neutral-800 border-none rounded-lg px-4 py-2 text-white mb-4">
+                    <option value="">Select a subject</option>
+                </select>
+                <div id="quizzesList" class="space-y-2">
+                    <!-- Quizzes will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
         <!-- Admin Panel -->
         <div id="adminPanel" class="block">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
@@ -358,5 +432,6 @@
             new AdminPanel();
         });
     </script>
+    <script src="js/admin-management.js" type="module"></script>
 </body>
 </html>

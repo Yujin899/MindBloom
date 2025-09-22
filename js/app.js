@@ -4,7 +4,6 @@ import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.4.0/f
 
 // DOM Elements
 const userAvatar = document.getElementById('userAvatar');
-const userName = document.getElementById('userName');
 const userDropdown = document.getElementById('userDropdown');
 const signOutBtn = document.getElementById('signOutBtn');
 const subjectsAccordion = document.getElementById('subjectsAccordion');
@@ -79,10 +78,9 @@ async function initializeApp(user) {
         // Check if we're on the main page by looking for required elements
         const isMainPage = document.getElementById('subjectsAccordion') !== null;
         
-        // Update user info in header if elements exist
-        if (userAvatar && userName) {
+        // Update user info in header if avatar element exists
+        if (userAvatar) {
             userAvatar.src = user.photoURL || '/path/to/default-avatar.png';
-            userName.textContent = user.displayName;
         }
         
         // Check if user is admin
