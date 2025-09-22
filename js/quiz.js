@@ -92,7 +92,8 @@ async function initializeQuiz() {
         await setupQuizUI();
         
         updateLoadingStatus('Loading previous scores...');
-        await loadHighScore(quizId);
+        const highScore = await getHighScore(quizId);
+        console.log('Previous high score loaded:', highScore);
         
         updateLoadingStatus('Ready to begin!');
         setTimeout(hideLoading, 500); // Small delay to ensure smooth transition
@@ -265,22 +266,31 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Auth state changed:', user ? 'logged in' : 'logged out');
         if (user) {
             try {
-                await initializeQuiz();
+                await loadQuiz();
             } catch (error) {
                 console.error('Error in quiz initialization:', error);
+                sweetAlertDarkTheme.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to initialize the quiz. Please try again.',
+                    confirmButtonText: 'Return to Home'
+                }).then(() => {
+                    window.location.href = './index.html';
+                });
+            }
+        } else {
+            await sweetAlertDarkTheme.fire({
+                icon: 'warning',
+                title: 'Authentication Required',
+                text: 'Please sign in to access the quiz.',
+                confirmButtonText: 'Sign In',
+                confirmButtonColor: '#4ade80',
+                allowOutsideClick: false,
+                backdrop: 'rgba(0, 0, 0, 0.4)'
+            });
+            window.location.href = './auth.html';
         }
-    } else {
-        await sweetAlertDarkTheme.fire({
-            icon: 'warning',
-            title: 'Authentication Required',
-            text: 'Please sign in to access the quiz.',
-            confirmButtonText: 'Sign In',
-            confirmButtonColor: '#4ade80',
-            allowOutsideClick: false,
-            backdrop: 'rgba(0, 0, 0, 0.4)'
-        });
-        window.location.href = './auth.html';
-    }
+    });
 });
 
 async function loadQuiz() {
@@ -417,7 +427,7 @@ async function loadQuiz() {
     }
 }
 
-async function initializeQuiz() {
+async function setupQuizUI() {
     try {
         // Check authentication before proceeding
         await checkAuth();
