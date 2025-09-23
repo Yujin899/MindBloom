@@ -182,11 +182,13 @@ function loadSavedProgress(quizId) {
 
 // Save progress to localStorage
 function saveProgress() {
-    if (quiz) {
-        localStorage.setItem(`quiz_${quiz.id}`, JSON.stringify({
+    if (quiz && timeRemaining > 0) {
+        const saveData = {
             timeRemaining: timeRemaining,
             timestamp: new Date().getTime()
-        }));
+        };
+        localStorage.setItem(`quiz_${quiz.id}`, JSON.stringify(saveData));
+        console.log('Saved progress with time:', timeRemaining, 'seconds');
     }
 }
 
@@ -351,11 +353,17 @@ async function loadQuiz() {
         const savedProgress = localStorage.getItem(`quiz_${quizId}`);
         if (savedProgress) {
             const data = JSON.parse(savedProgress);
-            timeRemaining = data.timeRemaining;
-            console.log('Restored saved time:', timeRemaining, 'seconds');
+            const savedTime = parseInt(data.timeRemaining);
+            if (savedTime && savedTime > 0) {
+                timeRemaining = savedTime;
+                console.log('Restored saved time:', timeRemaining, 'seconds');
+            } else {
+                timeRemaining = (quizData.timeLimit || 30) * 60; // Convert minutes to seconds
+                console.log('Invalid saved time, setting new time limit:', quizData.timeLimit, 'minutes');
+            }
         } else {
             timeRemaining = (quizData.timeLimit || 30) * 60; // Convert minutes to seconds
-            console.log('Set new time limit:', quizData.timeLimit, 'minutes');
+            console.log('No saved progress, setting new time limit:', quizData.timeLimit, 'minutes');
         }
         
         if (!quizData) {
@@ -384,22 +392,12 @@ async function loadQuiz() {
         userAnswers = new Array(quiz.questions.length).fill(undefined);
         userCorrect = new Array(quiz.questions.length).fill(false);
 
-        // Check for previous attempt or continue flag
-        const savedData = localStorage.getItem(`quiz_${quizId}`);
+        // Check for continue flag
         const shouldContinue = urlParams.get('continue') === 'true';
         
-        if (savedData) {
-            const data = JSON.parse(savedData);
-            // Only restore the timer state
-            timeRemaining = data.timeRemaining;
-            // Validate time remaining
-            if (!timeRemaining || timeRemaining <= 0) {
-                timeRemaining = (quiz.timeLimit || 30) * 60;
-            }
-            // Always reset answers on refresh
-            userAnswers = new Array(quiz.questions.length).fill(undefined);
-            userCorrect = new Array(quiz.questions.length).fill(false);
-        }
+        // Always reset answers on refresh
+        userAnswers = new Array(quiz.questions.length).fill(undefined);
+        userCorrect = new Array(quiz.questions.length).fill(false);
 
         // Initialize quiz UI
         await initializeQuiz();
@@ -717,12 +715,25 @@ function updateNavigationButtons() {
 }
 
 function startTimer() {
+    // Clear any existing interval
+    if (timerInterval) {
+        clearInterval(timerInterval);
+    }
+
     updateTimerDisplay();
+    saveProgress(); // Save initial state
+
     timerInterval = setInterval(() => {
         timeRemaining--;
         updateTimerDisplay();
         
+        // Save progress every 5 seconds
+        if (timeRemaining % 5 === 0) {
+            saveProgress();
+        }
+        
         if (timeRemaining <= 0) {
+            clearInterval(timerInterval);
             completeQuiz();
         }
     }, 1000);
