@@ -184,8 +184,6 @@ function loadSavedProgress(quizId) {
 function saveProgress() {
     if (quiz) {
         localStorage.setItem(`quiz_${quiz.id}`, JSON.stringify({
-            answers: userAnswers,
-            correct: userCorrect,
             timeRemaining: timeRemaining,
             timestamp: new Date().getTime()
         }));
@@ -260,6 +258,29 @@ questionNav.addEventListener('click', (e) => {
     }
 });
 
+// Check online status
+window.addEventListener('online', () => {
+    console.log('Connection restored');
+    sweetAlertDarkTheme.fire({
+        icon: 'success',
+        title: 'Connected',
+        text: 'Your internet connection has been restored.',
+        timer: 3000,
+        showConfirmButton: false
+    });
+});
+
+window.addEventListener('offline', () => {
+    console.log('Connection lost');
+    sweetAlertDarkTheme.fire({
+        icon: 'warning',
+        title: 'Offline Mode',
+        text: 'You are offline. Your progress will be saved locally.',
+        timer: 3000,
+        showConfirmButton: false
+    });
+});
+
 // Check authentication and load quiz
 document.addEventListener('DOMContentLoaded', () => {
     onAuthStateChanged(auth, async (user) => {
@@ -326,9 +347,16 @@ async function loadQuiz() {
         const quizData = quizDoc.data();
         console.log('Quiz data retrieved:', quizData);
         
-        // Set the time limit from quiz data
-        timeRemaining = (quizData.timeLimit || 30) * 60; // Convert minutes to seconds
-        console.log('Time limit set to:', quizData.timeLimit, 'minutes');
+        // Set the time limit, but check for saved time first
+        const savedProgress = localStorage.getItem(`quiz_${quizId}`);
+        if (savedProgress) {
+            const data = JSON.parse(savedProgress);
+            timeRemaining = data.timeRemaining;
+            console.log('Restored saved time:', timeRemaining, 'seconds');
+        } else {
+            timeRemaining = (quizData.timeLimit || 30) * 60; // Convert minutes to seconds
+            console.log('Set new time limit:', quizData.timeLimit, 'minutes');
+        }
         
         if (!quizData) {
             throw new Error('Quiz data is empty.');
@@ -361,50 +389,16 @@ async function loadQuiz() {
         const shouldContinue = urlParams.get('continue') === 'true';
         
         if (savedData) {
-            const lastAttemptDate = new Date(JSON.parse(savedData).timestamp);
-            const result = await sweetAlertDarkTheme.fire({
-                title: 'Previous Attempt Found',
-                html: shouldContinue ? 
-                    'Would you like to continue from where you left off?' :
-                    `
-                    <p>You have a previous attempt from ${lastAttemptDate.toLocaleString()}</p>
-                    <p class="mt-2">What would you like to do?</p>
-                    `,
-                icon: shouldContinue ? 'info' : 'question',
-                showDenyButton: true,
-                showCancelButton: true,
-                confirmButtonText: shouldContinue ? 'Yes, continue' : 'Review Previous Answers',
-                denyButtonText: shouldContinue ? 'No, start over' : 'Start New Quiz',
-                cancelButtonText: 'Cancel',
-                confirmButtonColor: '#3b82f6',
-                denyButtonColor: '#22c55e',
-                cancelButtonColor: '#ef4444'
-            });
-
-            if (result.isDismissed) {
-                window.history.back();
-                throw new Error('Quiz cancelled');
+            const data = JSON.parse(savedData);
+            // Only restore the timer state
+            timeRemaining = data.timeRemaining;
+            // Validate time remaining
+            if (!timeRemaining || timeRemaining <= 0) {
+                timeRemaining = (quiz.timeLimit || 30) * 60;
             }
-
-            if (result.isDenied) {
-                // Start fresh
-                clearProgress(quizId);
-                userAnswers = new Array(quiz.questions.length).fill(undefined);
-                userCorrect = new Array(quiz.questions.length).fill(false);
-                timeRemaining = (quiz.timeLimit || 30) * 60; // Convert minutes to seconds
-            } else if (result.isConfirmed) {
-                // Review mode or continue previous attempt
-                const loadedProgress = loadSavedProgress(quizId);
-                if (!loadedProgress) {
-                    // If no progress loaded, use quiz's time limit
-                    timeRemaining = (quiz.timeLimit || 30) * 60;
-                }
-                if (loadedProgress && quiz.isReview) {
-                    // Hide timer in review mode
-                    document.querySelector('.timer-section')?.classList.add('hidden');
-                    clearInterval(timerInterval);
-                }
-            }
+            // Always reset answers on refresh
+            userAnswers = new Array(quiz.questions.length).fill(undefined);
+            userCorrect = new Array(quiz.questions.length).fill(false);
         }
 
         // Initialize quiz UI
@@ -414,10 +408,38 @@ async function loadQuiz() {
     } catch (error) {
         console.error('Error loading quiz:', error);
         if (error.message !== 'Quiz cancelled') {
-            await Swal.fire({
+            // Check if error is related to being offline
+            const isOfflineError = error.message.includes('offline') || 
+                                 error.code === 'unavailable' || 
+                                 error.code === 'failed-precondition';
+
+            if (isOfflineError) {
+                // Try to load from cache first
+                const savedData = localStorage.getItem(`quiz_${quizId}`);
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    await sweetAlertDarkTheme.fire({
+                        icon: 'warning',
+                        title: 'Offline Mode',
+                        text: 'You are currently offline. Loading your last saved progress.',
+                        confirmButtonText: 'Continue',
+                        confirmButtonColor: '#4ade80'
+                    });
+                    // Continue with saved data
+                    userAnswers = data.answers;
+                    userCorrect = data.correct;
+                    timeRemaining = data.timeRemaining;
+                    return;
+                }
+            }
+
+            await sweetAlertDarkTheme.fire({
                 icon: 'error',
-                title: 'Error',
-                text: error.message || 'Failed to load quiz. Please try again.',
+                title: isOfflineError ? 'No Internet Connection' : 'Error',
+                text: isOfflineError ? 
+                    'Please check your internet connection and try again.' : 
+                    error.message || 'Failed to load quiz. Please try again.',
+                confirmButtonText: 'Return to Home',
                 confirmButtonColor: '#4ade80',
                 allowOutsideClick: false,
                 backdrop: 'rgba(0, 0, 0, 0.4)'
@@ -448,7 +470,7 @@ async function setupQuizUI() {
         }
         
         // Initialize time remaining if not already set
-        if (timeRemaining === null) {
+        if (timeRemaining === null || timeRemaining <= 0) {
             timeRemaining = (quiz.timeLimit || 30) * 60; // Convert minutes to seconds
         }
         
@@ -646,19 +668,6 @@ function selectAnswer(answerIndex) {
     // Save progress
     saveProgress();
     
-    // Show feedback with score
-    sweetAlertDarkTheme.fire({
-        icon: isCorrect ? 'success' : 'error',
-        title: isCorrect ? 'Correct!' : 'Incorrect',
-        html: isCorrect ? 
-            `<p>Good job!</p><p class="text-green-400">+${pointsEarned} points</p>${streakCount > 1 ? `<p class="text-sm">Streak: ${streakCount}x!</p>` : ''}` :
-            `<p>The correct answer was:</p><p class="font-semibold">${question.options[question.correctAnswer]}</p>`,
-        timer: 2000,
-        showConfirmButton: false,
-        position: 'top',
-        backdrop: false
-    });
-    
     // Update the display
     showQuestion(currentQuestionIndex);
 }
@@ -673,6 +682,22 @@ function handleNextButton() {
     if (currentQuestionIndex < quiz.questions.length - 1) {
         showQuestion(currentQuestionIndex + 1);
     } else {
+        // Check if all questions are answered
+        const unansweredQuestions = userAnswers.reduce((count, answer, index) => {
+            if (answer === undefined) return [...count, index + 1];
+            return count;
+        }, []);
+
+        if (unansweredQuestions.length > 0) {
+            sweetAlertDarkTheme.fire({
+                icon: 'warning',
+                title: 'Incomplete Quiz',
+                html: `Please answer all questions before completing the quiz.<br><br>Unanswered questions: ${unansweredQuestions.join(', ')}`,
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#4ade80'
+            });
+            return;
+        }
         completeQuiz();
     }
 }
@@ -680,7 +705,12 @@ function handleNextButton() {
 function updateNavigationButtons() {
     prevBtn.disabled = currentQuestionIndex === 0;
     if (currentQuestionIndex === quiz.questions.length - 1) {
-        nextBtn.textContent = 'Complete Quiz';
+        const unansweredCount = userAnswers.filter(answer => answer === undefined).length;
+        if (unansweredCount > 0) {
+            nextBtn.textContent = `Answer All Questions (${unansweredCount} left)`;
+        } else {
+            nextBtn.textContent = 'Complete Quiz';
+        }
     } else {
         nextBtn.textContent = 'Next';
     }
@@ -705,6 +735,23 @@ function updateTimerDisplay() {
 }
 
 async function completeQuiz() {
+    // Check if all questions are answered
+    const unansweredQuestions = userAnswers.reduce((count, answer, index) => {
+        if (answer === undefined) return [...count, index + 1];
+        return count;
+    }, []);
+
+    if (unansweredQuestions.length > 0) {
+        sweetAlertDarkTheme.fire({
+            icon: 'warning',
+            title: 'Incomplete Quiz',
+            html: `Please answer all questions before completing the quiz.<br><br>Unanswered questions: ${unansweredQuestions.join(', ')}`,
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#4ade80'
+        });
+        return;
+    }
+
     clearInterval(timerInterval);
     
     // Clear saved progress on completion
@@ -759,14 +806,15 @@ async function completeQuiz() {
         `,
         confirmButtonText: 'Review Answers',
         confirmButtonColor: '#4ade80',
-        showCancelButton: true,
-        cancelButtonText: 'Close',
-        cancelButtonColor: '#ef4444'
+        showDenyButton: true,
+        denyButtonText: 'Return Home',
+        denyButtonColor: '#ef4444',
+        allowOutsideClick: false
     }).then((result) => {
         if (result.isConfirmed) {
             // Reset to first question for review
             showQuestion(0);
-        } else {
+        } else if (result.isDenied) {
             // Return to subject list
             window.location.href = 'index.html';
         }
