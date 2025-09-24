@@ -1,7 +1,7 @@
 import { auth, db } from './firebase-config.js';
 import { checkAuth } from './app.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
-import { doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+import { doc, getDoc, updateDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
 // Configure SweetAlert2 Dark Theme
 const sweetAlertDarkTheme = Swal.mixin({
@@ -59,6 +59,7 @@ let timeRemaining = null; // Will be set from quiz.timeLimit
 let timerInterval;
 let currentScore = 0;
 let streakCount = 0; // Track consecutive correct answers
+let currentSubjectId = null; // Store the current subject ID globally
 
 // Scoring constants
 const SCORE_PER_CORRECT = 100;
@@ -80,23 +81,40 @@ async function initializeQuiz() {
             throw new Error('Missing quiz or subject ID');
         }
         
+        // Store subject ID globally before using it
+        currentSubjectId = subjectId;
+        
         updateLoadingStatus('Fetching quiz content...');
-        const quizDoc = await getDoc(doc(db, `subjects/${subjectId}/quizzes/${quizId}`));
+        const quizDoc = await getDoc(doc(db, `subjects/${currentSubjectId}/quizzes/${quizId}`));
         if (!quizDoc.exists()) {
             throw new Error('Quiz not found');
         }
         
-        quiz = { id: quizDoc.id, ...quizDoc.data() };
-        
-        updateLoadingStatus('Setting up quiz interface...');
-        await setupQuizUI();
-        
-        updateLoadingStatus('Loading previous scores...');
-        const highScore = await getHighScore(quizId);
-        console.log('Previous high score loaded:', highScore);
-        
-        updateLoadingStatus('Ready to begin!');
-        setTimeout(hideLoading, 500); // Small delay to ensure smooth transition
+                    quiz = { id: quizDoc.id, ...quizDoc.data() };
+            
+            updateLoadingStatus('Setting up quiz interface...');
+            await setupQuizUI();
+            
+            // Store the subject ID globally
+            currentSubjectId = subjectId;
+            
+            updateLoadingStatus('Loading high scores...');
+            // Get and display current global high score
+            const currentHighScoreData = await getHighScore(quizId, currentSubjectId);
+            console.log('Previous high score loaded:', currentHighScoreData);
+            
+            // Update high score display
+            const highScoreDisplay = document.getElementById('highScore');
+            if (highScoreDisplay) {
+                if (currentHighScoreData.score > 0) {
+                    highScoreDisplay.textContent = `High Score: ${currentHighScoreData.score}`;
+                } else {
+                    highScoreDisplay.textContent = 'High Score: No high score yet';
+                }
+            }
+            
+            updateLoadingStatus('Ready to begin!');
+            setTimeout(hideLoading, 500); // Small delay to ensure smooth transition
         
     } catch (error) {
         console.error('Error initializing quiz:', error);
@@ -111,12 +129,21 @@ async function initializeQuiz() {
     }
 }
 
-// Get high score from Firestore
-async function getHighScore(quizId) {
+// Get global high score for this quiz
+async function getHighScore(quizId, subjectId) {
     try {
-        const scoreDoc = await getDoc(doc(db, 'highScores', quizId));
-        if (scoreDoc.exists()) {
-            return scoreDoc.data();
+        const quizRef = doc(db, 'subjects', subjectId, 'quizzes', quizId);
+        const quizDoc = await getDoc(quizRef);
+        
+        if (quizDoc.exists()) {
+            const data = quizDoc.data();
+            // Check if there's a recorded global high score
+            if (data.globalHighScore) {
+                return {
+                    score: data.globalHighScore,
+                    holder: data.globalHighScoreHolder || 'Anonymous'
+                };
+            }
         }
         return { score: 0, holder: 'No one yet' };
     } catch (error) {
@@ -125,33 +152,76 @@ async function getHighScore(quizId) {
     }
 }
 
-// Save high score to Firestore
-async function updateHighScore(quizId, newScore, userName) {
+// Update global high score if new score is higher
+async function updateHighScore(quizId, subjectId, newScore, userName) {
     try {
-        const scoreRef = doc(db, 'highScores', quizId);
-        const currentScore = await getDoc(scoreRef);
-        
-        if (!currentScore.exists() || newScore > currentScore.data().score) {
-            await updateDoc(scoreRef, {
-                score: newScore,
-                holder: userName,
-                date: serverTimestamp()
-            }, { merge: true });
-            return true;
+        if (!quizId || !subjectId) {
+            console.error('Missing quiz ID or subject ID');
+            return false;
         }
-        return false;
+
+        const quizRef = doc(db, 'subjects', subjectId, 'quizzes', quizId);
+        const quizDoc = await getDoc(quizRef);
+        const currentData = quizDoc.data() || {};
+        
+        // Get the current global high score
+        const currentHighScore = currentData.globalHighScore || 0;
+        
+        console.log('Current global high score:', currentHighScore);
+        console.log('New score:', newScore);
+
+        // Only update if the new score is higher than the global high score
+        if (newScore > currentHighScore) {
+            const updateData = {
+                globalHighScore: newScore,
+                globalHighScoreHolder: userName,
+                globalHighScoreDate: serverTimestamp(),
+                // Also store this attempt in the history
+                lastAttempt: {
+                    score: newScore,
+                    player: userName,
+                    date: serverTimestamp()
+                }
+            };
+
+            try {
+                if (quizDoc.exists()) {
+                    await updateDoc(quizRef, updateData);
+                    console.log('New global high score set!');
+                } else {
+                    await setDoc(quizRef, { ...currentData, ...updateData }, { merge: true });
+                    console.log('Created quiz document with new high score!');
+                }
+                return true;
+            } catch (updateError) {
+                console.error('Error updating global high score:', updateError);
+                throw updateError;
+            }
+        } else {
+            // Still record this attempt even if it's not a high score
+            await updateDoc(quizRef, {
+                lastAttempt: {
+                    score: newScore,
+                    player: userName,
+                    date: serverTimestamp()
+                }
+            });
+            console.log('Score recorded, but not a new high score');
+            return false;
+        }
     } catch (error) {
-        console.error('Error updating high score:', error);
+        console.error('Error in updateHighScore:', error);
         return false;
     }
 }
-
 // Calculate score with streak bonus
 function calculateScoreWithBonus(isCorrect) {
     if (isCorrect) {
         streakCount++;
         const streakBonus = Math.min(streakCount * STREAK_BONUS, MAX_STREAK_BONUS);
-        return SCORE_PER_CORRECT + streakBonus;
+        const totalPoints = SCORE_PER_CORRECT + streakBonus;
+        currentScore += totalPoints; // Update current score
+        return totalPoints;
     } else {
         streakCount = 0;
         return 0;
@@ -223,13 +293,13 @@ const totalQuestionsElement = document.getElementById('totalQuestions');
 const questionNav = document.getElementById('questionNav');
 const questionText = document.getElementById('questionText');
 const answerOptions = document.getElementById('answerOptions');
-const prevBtn = document.getElementById('prevBtn');
-const nextBtn = document.getElementById('nextBtn');
+let prevBtn = document.getElementById('prevBtn');
+let nextBtn = document.getElementById('nextBtn');
 const completionModal = document.getElementById('completionModal');
 const finalScore = document.getElementById('finalScore');
 const timeTaken = document.getElementById('timeTaken');
-const reviewBtn = document.getElementById('reviewBtn');
-const finishBtn = document.getElementById('finishBtn');
+let reviewBtn = document.getElementById('reviewBtn');
+let finishBtn = document.getElementById('finishBtn');
 
 // Drawer Elements
 const drawerToggle = document.getElementById('drawerToggle');
@@ -325,7 +395,7 @@ async function loadQuiz() {
         currentScore = 0;
         streakCount = 0;
         
-        // Get quiz ID from URL parameters
+        // Get quiz ID and subject ID from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const quizId = urlParams.get('id');
         const subjectId = urlParams.get('subject');
@@ -338,8 +408,11 @@ async function loadQuiz() {
             throw new Error('Quiz information is missing. Please make sure you accessed this page correctly.');
         }
 
+        // Store subject ID globally before using it
+        currentSubjectId = subjectId;
+
         // Get the quiz document
-        const quizRef = doc(db, 'subjects', subjectId, 'quizzes', quizId);
+        const quizRef = doc(db, 'subjects', currentSubjectId, 'quizzes', quizId);
         const quizDoc = await getDoc(quizRef);
         
         if (!quizDoc.exists()) {
@@ -375,6 +448,7 @@ async function loadQuiz() {
             id: quizId,
             title: quizData.title || 'Untitled Quiz',
             description: quizData.description || '',
+            isReviewMode: false, // Initialize review mode flag
             questions: Array.isArray(quizData.questions) ? quizData.questions :
                       typeof quizData.questionCount === 'number' ? 
                       Array.from({ length: quizData.questionCount }, (_, i) => ({
@@ -501,11 +575,29 @@ async function setupQuizUI() {
         throw error;
     }
     
-    // Add event listeners
-    prevBtn.addEventListener('click', showPreviousQuestion);
-    nextBtn.addEventListener('click', handleNextButton);
-    reviewBtn.addEventListener('click', reviewQuiz);
-    finishBtn.addEventListener('click', () => window.location.href = './index.html');
+    // Remove any existing event listeners
+    prevBtn.replaceWith(prevBtn.cloneNode(true));
+    nextBtn.replaceWith(nextBtn.cloneNode(true));
+    reviewBtn.replaceWith(reviewBtn.cloneNode(true));
+    finishBtn.replaceWith(finishBtn.cloneNode(true));
+    
+    // Re-get the elements after replacing
+    const newPrevBtn = document.getElementById('prevBtn');
+    const newNextBtn = document.getElementById('nextBtn');
+    const newReviewBtn = document.getElementById('reviewBtn');
+    const newFinishBtn = document.getElementById('finishBtn');
+    
+    // Add new event listeners
+    newPrevBtn.addEventListener('click', showPreviousQuestion);
+    newNextBtn.addEventListener('click', handleNextButton);
+    newReviewBtn.addEventListener('click', reviewQuiz);
+    newFinishBtn.addEventListener('click', () => window.location.href = './index.html');
+    
+    // Update the references
+    prevBtn = newPrevBtn;
+    nextBtn = newNextBtn;
+    reviewBtn = newReviewBtn;
+    finishBtn = newFinishBtn;
 }
 
 function createQuestionNav() {
@@ -666,8 +758,9 @@ function selectAnswer(answerIndex) {
     // Save progress
     saveProgress();
     
-    // Update the display
+    // Update the display and navigation
     showQuestion(currentQuestionIndex);
+    updateNavigationButtons();
 }
 
 function showPreviousQuestion() {
@@ -676,9 +769,29 @@ function showPreviousQuestion() {
     }
 }
 
-function handleNextButton() {
+function handleNextButton(e) {
+    // Prevent any default behavior
+    if (e) e.preventDefault();
+    
+    // Prevent multiple rapid clicks
+    if (this.disabled) return;
+    this.disabled = true;
+    
+    // Function to enable the button after a short delay
+    const enableButton = () => {
+        this.disabled = false;
+    };
+    
+    // If in review mode and at last question, this should never be called
+    // as the button should have a direct onclick handler to return home
+    if (quiz.isReviewMode && currentQuestionIndex === quiz.questions.length - 1) {
+        window.location.href = './index.html';
+        return;
+    };
+
     if (currentQuestionIndex < quiz.questions.length - 1) {
         showQuestion(currentQuestionIndex + 1);
+        setTimeout(enableButton, 500); // Re-enable after animation
     } else {
         // Check if all questions are answered
         const unansweredQuestions = userAnswers.reduce((count, answer, index) => {
@@ -694,23 +807,43 @@ function handleNextButton() {
                 confirmButtonText: 'OK',
                 confirmButtonColor: '#4ade80'
             });
+            enableButton();
             return;
         }
         completeQuiz();
+        enableButton();
     }
 }
 
 function updateNavigationButtons() {
+    if (!quiz) return;
+    
     prevBtn.disabled = currentQuestionIndex === 0;
+    
+    // Check if we're in review mode (after quiz completion)
+    const isReviewMode = quiz.isReviewMode === true;
+    
     if (currentQuestionIndex === quiz.questions.length - 1) {
-        const unansweredCount = userAnswers.filter(answer => answer === undefined).length;
-        if (unansweredCount > 0) {
-            nextBtn.textContent = `Answer All Questions (${unansweredCount} left)`;
+        if (isReviewMode) {
+            // In review mode, show Return Home
+            nextBtn.textContent = 'Return Home';
+            nextBtn.onclick = () => window.location.href = './index.html';
         } else {
-            nextBtn.textContent = 'Complete Quiz';
+            const unansweredCount = userAnswers.filter(answer => answer === undefined).length;
+
+            if (unansweredCount > 0) {
+                // Still have questions to answer
+                nextBtn.textContent = `Answer All Questions (${unansweredCount} left)`;
+                nextBtn.onclick = handleNextButton;
+            } else {
+                // All questions answered, show Complete Quiz
+                nextBtn.textContent = 'Complete Quiz';
+                nextBtn.onclick = handleNextButton;
+            }
         }
     } else {
         nextBtn.textContent = 'Next';
+        nextBtn.onclick = handleNextButton;
     }
 }
 
@@ -771,13 +904,23 @@ async function completeQuiz() {
     }
     
     // Get current stats
-    const correctAnswers = calculateScore();
+    const correctAnswers = userCorrect.filter(correct => correct).length;
     const timeTakenSeconds = 30 * 60 - timeRemaining;
     const minutes = Math.floor(timeTakenSeconds / 60);
     const seconds = timeTakenSeconds % 60;
     
-    // Check for high score
-    const isHighScore = updateHighScore(quiz.id, currentScore, auth.currentUser.displayName);
+    // Check for high score (use currentScore which includes streak bonuses)
+    console.log('Attempting to update high score with:', {
+        quizId: quiz.id,
+        subjectId: currentSubjectId,
+        currentScore,
+        userName: auth.currentUser.displayName
+    });
+    const isHighScore = await updateHighScore(quiz.id, currentSubjectId, currentScore, auth.currentUser.displayName);
+    console.log('High score check result:', isHighScore ? 'New high score!' : 'Not a high score');
+    
+    // Get the current high score for comparison
+    const existingHighScore = await getHighScore(quiz.id, currentSubjectId);
     
     // Show completion modal with different messages based on performance
     const accuracy = (correctAnswers / quiz.questions.length) * 100;
@@ -793,6 +936,13 @@ async function completeQuiz() {
     } else {
         message = 'Keep practicing! You can do better! 💪';
         icon = 'info';
+    }
+    
+    // Add high score context to the message
+    if (currentScore > existingHighScore.score) {
+        message += '\n🎉 NEW HIGH SCORE! 🎉';
+    } else if (existingHighScore.score > 0) {
+        message += `\nCurrent high score: ${existingHighScore.score}`;
     }
 
     await sweetAlertDarkTheme.fire({
@@ -823,8 +973,8 @@ async function completeQuiz() {
         allowOutsideClick: false
     }).then((result) => {
         if (result.isConfirmed) {
-            // Reset to first question for review
-            showQuestion(0);
+            // Start review mode
+            reviewQuiz();
         } else if (result.isDenied) {
             // Return to subject list
             window.location.href = 'index.html';
@@ -840,5 +990,8 @@ function calculateScore() {
 
 function reviewQuiz() {
     completionModal.classList.add('hidden');
+    quiz.isReviewMode = true; // Set review mode flag
+    currentQuestionIndex = 0; // Reset to first question
     showQuestion(0);
+    updateNavigationButtons(); // Ensure buttons are updated for review mode
 }
