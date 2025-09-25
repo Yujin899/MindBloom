@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - MindBloom</title>
+    <link href="./src/output.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-black text-white min-h-screen">
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="fixed inset-0 bg-black flex items-center justify-center z-50">
+        <div class="text-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-green-400 mb-4 mx-auto"></div>
+            <p class="text-green-400 text-lg">Loading Profile...</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="mainContent" class="container max-w-6xl mx-auto p-4 hidden">
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl font-bold text-green-400">My Profile</h1>
+            <a href="./index.html" class="text-green-400 hover:text-green-300">← Back to Home</a>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <!-- User Info Card -->
+            <div class="md:col-span-4 bg-neutral-800 rounded-lg p-6">
+                <div class="text-center mb-6">
+                    <img id="userAvatar" class="w-24 h-24 rounded-full mx-auto mb-4" alt="Profile Picture">
+                    <h2 id="userName" class="text-xl font-bold"></h2>
+                    <p id="userEmail" class="text-gray-400"></p>
+                </div>
+                <div class="space-y-4 mt-6">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Total Quizzes</span>
+                        <span id="totalQuizzes" class="font-bold text-green-400">0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Average Score</span>
+                        <span id="averageScore" class="font-bold text-green-400">0%</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Best Score</span>
+                        <span id="bestScore" class="font-bold text-green-400">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Charts -->
+            <div class="md:col-span-8 space-y-6">
+                <div class="bg-neutral-800 rounded-lg p-6">
+                    <h3 class="text-lg font-bold mb-4">Performance Over Time</h3>
+                    <div class="relative h-[300px]">
+                        <canvas id="performanceChart" class="w-full"></canvas>
+                    </div>
+                </div>
+                <div class="bg-neutral-800 rounded-lg p-6">
+                    <h3 class="text-lg font-bold mb-4">Subject Performance</h3>
+                    <div class="relative h-[300px]">
+                        <canvas id="subjectChart" class="w-full"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Quizzes -->
+            <div class="md:col-span-12">
+                <div class="bg-neutral-800 rounded-lg p-6">
+                    <h3 class="text-lg font-bold mb-4">Recent Quizzes</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="text-left border-b border-neutral-700">
+                                    <th class="py-3 px-4">Quiz</th>
+                                    <th class="py-3 px-4">Score</th>
+                                    <th class="py-3 px-4">Date</th>
+                                    <th class="py-3 px-4">Time Taken</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentQuizzesList">
+                                <!-- Quiz entries will be added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./js/profile.js"></script>
+</body>
+</html>

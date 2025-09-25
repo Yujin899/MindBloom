@@ -1,7 +1,7 @@
 import { auth, db } from './firebase-config.js';
 import { checkAuth } from './app.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
-import { doc, getDoc, updateDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+import { doc, getDoc, updateDoc, setDoc, serverTimestamp, addDoc, collection } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
 // Configure SweetAlert2 Dark Theme
 const sweetAlertDarkTheme = Swal.mixin({
@@ -879,6 +879,12 @@ function updateTimerDisplay() {
 }
 
 async function completeQuiz() {
+    // Check if quiz is already completed to prevent duplicate submissions
+    if (quiz.isCompleted) {
+        console.log('Quiz already completed, preventing duplicate submission');
+        return;
+    }
+
     // Check if all questions are answered
     const unansweredQuestions = userAnswers.reduce((count, answer, index) => {
         if (answer === undefined) return [...count, index + 1];
@@ -897,6 +903,36 @@ async function completeQuiz() {
     }
 
     clearInterval(timerInterval);
+    
+    try {
+        // Mark quiz as completed to prevent duplicate submissions
+        quiz.isCompleted = true;
+
+        // Save quiz attempt to Firestore
+        const timeTakenSeconds = (quiz.timeLimit || 30) * 60 - timeRemaining;
+        const correctAnswers = userCorrect.filter(correct => correct).length;
+        
+        const attemptData = {
+            userId: auth.currentUser.uid,
+            quizId: quiz.id,
+            subjectId: currentSubjectId,
+            score: currentScore, // Use the currentScore that includes streak bonuses
+            timeTaken: timeTakenSeconds,
+            timestamp: serverTimestamp(),
+            totalQuestions: quiz.questions.length,
+            correctAnswers: correctAnswers,
+            quizTitle: quiz.title,
+            subjectTitle: document.querySelector('#quizTitle')?.textContent || 'Unknown Subject',
+            streakBonus: Math.min(streakCount * STREAK_BONUS, MAX_STREAK_BONUS),
+            score: Math.round((correctAnswers / quiz.questions.length) * 100) // Store score as percentage
+        };
+
+        const docRef = await addDoc(collection(db, 'quizAttempts'), attemptData);
+        console.log('Quiz attempt saved with ID:', docRef.id);
+        console.debug('Quiz attempt details:', { ...attemptData, timestamp: 'serverTimestamp' });
+    } catch (error) {
+        console.error('Error saving quiz attempt:', error);
+    }
     
     // Clear saved progress on completion
     if (quiz) {
