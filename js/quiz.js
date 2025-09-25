@@ -107,9 +107,9 @@ async function initializeQuiz() {
             const highScoreDisplay = document.getElementById('highScore');
             if (highScoreDisplay) {
                 if (currentHighScoreData.score > 0) {
-                    highScoreDisplay.textContent = `High Score: ${currentHighScoreData.score}`;
+                    highScoreDisplay.textContent = ` ${currentHighScoreData.score}`;
                 } else {
-                    highScoreDisplay.textContent = 'High Score: No high score yet';
+                    highScoreDisplay.textContent = ' No high score yet';
                 }
             }
             
