@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile - MindBloom</title>
     <link href="./src/output.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-black text-white min-h-screen">
     <!-- Loading Screen -->
@@ -44,6 +43,11 @@
                         <span class="text-gray-400">Best Score</span>
                         <span id="bestScore" class="font-bold text-green-400">0%</span>
                     </div>
+                    <!-- Mini KPI charts -->
+                    <div class="grid grid-cols-2 gap-3 mt-4">
+                        <div id="avgGauge" class="w-full h-40 md:h-48 bg-neutral-900 rounded-lg p-2"></div>
+                        <div id="trendSpark" class="w-full h-40 md:h-48 bg-neutral-900 rounded-lg p-2"></div>
+                    </div>
                 </div>
             </div>
 
@@ -51,14 +55,14 @@
             <div class="md:col-span-8 space-y-6">
                 <div class="bg-neutral-800 rounded-lg p-6">
                     <h3 class="text-lg font-bold mb-4">Performance Over Time</h3>
-                    <div class="relative h-[300px]">
-                        <canvas id="performanceChart" class="w-full"></canvas>
+                    <div class="relative h-[460px] md:h-[520px]">
+                        <div id="performanceChart" class="w-full h-full"></div>
                     </div>
                 </div>
                 <div class="bg-neutral-800 rounded-lg p-6">
                     <h3 class="text-lg font-bold mb-4">Subject Performance</h3>
-                    <div class="relative h-[300px]">
-                        <canvas id="subjectChart" class="w-full"></canvas>
+                    <div class="relative h-[360px] md:h-[420px]">
+                        <div id="subjectChart" class="w-full h-full"></div>
                     </div>
                 </div>
             </div>

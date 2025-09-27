@@ -1,7 +1,19 @@
+import { auth, db } from './firebase-config.js';
+import { 
+    collection, 
+    query, 
+    where, 
+    orderBy, 
+    getDocs,
+    updateDoc,
+    deleteDoc,
+    doc,
+    writeBatch
+} from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
 // Admin Management
 window.currentUser = null;
 window.allUsers = [];
-window.currentAdmins = [];
 
 // Alert function using SweetAlert2
 window.showAlert = function(type, message) {
@@ -19,23 +31,17 @@ window.showAlert = function(type, message) {
 // Make functions globally accessible
 window.toggleAdminStatus = async function(userId, makeAdmin) {
     try {
+        if (auth.currentUser?.email !== 'emad76065@gmail.com') {
+            throw new Error('Unauthorized access');
+        }
         await updateDoc(doc(db, 'users', userId), {
             isAdmin: makeAdmin
         });
         
-        // Update local arrays
+        // Update local array
         const userIndex = window.allUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) {
             window.allUsers[userIndex].isAdmin = makeAdmin;
-        }
-        
-        if (makeAdmin) {
-            window.currentAdmins.push(window.allUsers[userIndex]);
-        } else {
-            const adminIndex = window.currentAdmins.findIndex(a => a.id === userId);
-            if (adminIndex !== -1) {
-                window.currentAdmins.splice(adminIndex, 1);
-            }
         }
         
         // Refresh displays
@@ -49,6 +55,11 @@ window.toggleAdminStatus = async function(userId, makeAdmin) {
 };
 
 window.deleteSubject = async function(subjectId) {
+    if (auth.currentUser?.email !== 'emad76065@gmail.com') {
+        showAlert('error', 'Unauthorized: Only the admin can delete subjects');
+        return;
+    }
+    
     if (!confirm('Are you sure you want to delete this subject? This will also delete all quizzes in this subject.')) {
         return;
     }
@@ -75,6 +86,11 @@ window.deleteSubject = async function(subjectId) {
 };
 
 window.deleteQuiz = async function(subjectId, quizId) {
+    if (auth.currentUser?.email !== 'emad76065@gmail.com') {
+        showAlert('error', 'Unauthorized: Only the admin can delete quizzes');
+        return;
+    }
+
     if (!confirm('Are you sure you want to delete this quiz?')) {
         return;
     }
@@ -100,10 +116,14 @@ const quizzesList = document.getElementById('quizzesList');
 const subjectSelect = document.getElementById('subjectSelect');
 
 // Event Listeners
-document.getElementById('manageAdminsBtn').addEventListener('click', () => {
+document.getElementById('manageAdminsBtn').addEventListener('click', async () => {
+    if (auth.currentUser?.email !== 'emad76065@gmail.com') {
+        showAlert('error', 'Unauthorized: Only the admin can access this section');
+        return;
+    }
     adminManagementModal.classList.remove('hidden');
     adminManagementModal.classList.add('flex');
-    loadUsers();
+    await loadUsers();
 });
 
 closeAdminModal.addEventListener('click', () => {
@@ -130,19 +150,17 @@ subjectSelect.addEventListener('change', (e) => {
 // Load and display users
 async function loadUsers() {
     try {
+        // Check if current user is the admin
+        if (auth.currentUser?.email !== 'emad76065@gmail.com') {
+            throw new Error('Unauthorized access');
+        }
         const usersSnapshot = await getDocs(collection(db, 'users'));
-        allUsers = [];
-        currentAdmins = [];
+        window.allUsers = usersSnapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data() 
+        }));
         
-        usersSnapshot.forEach(doc => {
-            const userData = { id: doc.id, ...doc.data() };
-            allUsers.push(userData);
-            if (userData.isAdmin) {
-                currentAdmins.push(userData);
-            }
-        });
-        
-        displayUsers(allUsers);
+        displayUsers(window.allUsers);
         displayAdmins();
     } catch (error) {
         console.error('Error loading users:', error);
@@ -172,7 +190,8 @@ function displayUsers(users) {
 }
 
 function displayAdmins() {
-    adminsList.innerHTML = currentAdmins.map(admin => `
+    const admins = window.allUsers.filter(user => user.isAdmin);
+    adminsList.innerHTML = admins.map(admin => `
         <div class="flex items-center justify-between p-3 bg-neutral-800 rounded-lg">
             <div>
                 <p class="text-white">${admin.email}</p>

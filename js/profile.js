@@ -122,10 +122,13 @@ async function loadUserProfile(user) {
             : '0%';
         bestScore.textContent = `${maxScore}%`;
 
-        // Display recent quizzes and charts
-        displayRecentQuizzes(attempts);
-        createPerformanceChart(attempts);
-        createSubjectPerformanceChart(attempts);
+    // Display recent quizzes and ensure the UI is visible before creating charts
+    displayRecentQuizzes(attempts);
+    // Make main content visible and render content
+    hideLoading();
+    renderKpis(attempts);
+    createPerformanceChart(attempts);
+    createSubjectPerformanceChart(attempts);
 
     } catch (error) {
         console.error('Error loading profile:', error);
@@ -155,266 +158,142 @@ function displayRecentQuizzes(attempts) {
         : '<tr><td colspan="4" class="py-4 text-center text-gray-400">No recent quizzes</td></tr>';
 }
 
-// Store chart instances
-let performanceChart = null;
-let subjectChart = null;
-
-// Create performance over time chart
+// Display performance stats
 function createPerformanceChart(attempts) {
-    const canvas = document.getElementById('performanceChart');
-    const ctx = canvas?.getContext('2d');
-    if (!ctx || attempts.length === 0) return;
-    
-    // Destroy existing chart if it exists
-    if (performanceChart) {
-        performanceChart.destroy();
-    }
+    const container = document.getElementById('performanceChart');
+    if (!container) return;
 
-    // Sort attempts chronologically
-    const sortedAttempts = [...attempts].sort((a, b) => 
-        a.timestamp.seconds - b.timestamp.seconds
-    );
+    const total = attempts.length;
+    const avg = total ? Math.round(attempts.reduce((s, a) => s + (a.score || 0), 0) / total) : 0;
+    const best = total ? Math.max(...attempts.map(a => a.score || 0)) : 0;
 
-    performanceChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: sortedAttempts.map(a => formatDate(a.timestamp.toDate())),
-            datasets: [{
-                label: 'Quiz Scores',
-                data: sortedAttempts.map(a => a.score),
-                borderColor: '#4ade80',
-                backgroundColor: 'rgba(74, 222, 128, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#4ade80',
-                pointRadius: 6,
-                pointHoverRadius: 8,
-                borderWidth: 3,
-                pointBorderColor: '#171717',
-                pointBorderWidth: 2,
-                pointStyle: 'circle',
-                cubicInterpolationMode: 'monotone'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.05)',
-                        drawBorder: false
-                    },
-                    border: {
-                        display: false
-                    },
-                    ticks: {
-                        color: '#9ca3af',
-                        font: {
-                            size: 12,
-                            family: 'Inter, system-ui, sans-serif'
-                        },
-                        padding: 10,
-                        callback: value => value + '%'
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    },
-                    border: {
-                        display: false
-                    },
-                    ticks: {
-                        color: '#9ca3af',
-                        font: {
-                            size: 12,
-                            family: 'Inter, system-ui, sans-serif'
-                        },
-                        maxRotation: 45,
-                        minRotation: 45,
-                        padding: 10
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                    titleColor: '#ffffff',
-                    bodyColor: '#ffffff',
-                    bodyFont: {
-                        size: 14,
-                        family: 'Inter, system-ui, sans-serif'
-                    },
-                    titleFont: {
-                        size: 16,
-                        family: 'Inter, system-ui, sans-serif',
-                        weight: 'bold'
-                    },
-                    padding: 12,
-                    cornerRadius: 8,
-                    displayColors: false,
-                    callbacks: {
-                        title: (tooltipItems) => {
-                            return formatDate(sortedAttempts[tooltipItems[0].dataIndex].timestamp.toDate());
-                        },
-                        label: (context) => `Score: ${context.raw}%`
-                    }
-                }
-            }
-        }
-    });
+    container.innerHTML = `
+        <div class="p-6 bg-neutral-800 rounded-lg shadow-lg">
+            <h3 class="text-lg font-bold mb-4 text-green-400">Performance Overview</h3>
+            <div class="grid grid-cols-3 gap-4">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-white">${total}</div>
+                    <div class="text-sm text-gray-400">Total Attempts</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold ${avg >= 80 ? 'text-green-400' : avg >= 60 ? 'text-yellow-400' : 'text-red-400'}">${avg}%</div>
+                    <div class="text-sm text-gray-400">Average Score</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-green-400">${best}%</div>
+                    <div class="text-sm text-gray-400">Best Score</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+
+}
+
+// Display KPI stats
+function renderKpis(attempts) {
+    const avgContainer = document.getElementById('avgGauge');
+    const sparkContainer = document.getElementById('trendSpark');
+    if (!avgContainer || !sparkContainer) return;
+
+    const avg = attempts.length > 0 ? Math.round(attempts.reduce((s, a) => s + (a.score || 0), 0) / attempts.length) : 0;
+    const recentScores = attempts.slice(0, 5).map(a => ({ score: a.score, date: formatDate(a.timestamp.toDate()) }));
+
+    // Average score display
+    avgContainer.innerHTML = `
+        <div class="p-4 bg-neutral-900 rounded-lg">
+            <div class="text-center">
+                <div class="text-3xl font-bold ${avg >= 80 ? 'text-green-400' : avg >= 60 ? 'text-yellow-400' : 'text-red-400'}">${avg}%</div>
+                <div class="text-sm text-gray-400 mt-1">Average Score</div>
+            </div>
+        </div>
+    `;
+
+    // Recent scores display
+    sparkContainer.innerHTML = `
+        <div class="p-4 bg-neutral-900 rounded-lg">
+            <div class="text-sm text-gray-400 mb-2">Recent Scores</div>
+            ${recentScores.length ? recentScores.map(s => `
+                <div class="flex justify-between items-center mb-1 last:mb-0">
+                    <span class="text-sm text-gray-400">${s.date}</span>
+                    <span class="font-medium ${s.score >= 80 ? 'text-green-400' : s.score >= 60 ? 'text-yellow-400' : 'text-red-400'}"> ${s.score}%</span>
+                </div>
+            `).join('') : '<div class="text-center text-gray-400">No recent scores</div>'}
+        </div>
+    `;
 }
 
 // Create subject performance chart
 function createSubjectPerformanceChart(attempts) {
-    const canvas = document.getElementById('subjectChart');
-    const ctx = canvas?.getContext('2d');
-    if (!ctx || attempts.length === 0) return;
-
-    // Destroy existing chart if it exists
-    if (subjectChart) {
-        subjectChart.destroy();
-    }
+    const container = document.getElementById('subjectChart');
+    if (!container) return;
 
     // Group attempts by subject with improved subject tracking
     const subjectStats = {};
     let subjectTitles = {};
 
-    attempts.forEach(attempt => {
-        const subject = attempt.subjectId;
+    (attempts || []).forEach(attempt => {
+        const subject = attempt.subjectId || 'unknown';
         const subjectTitle = attempt.subjectTitle || `Subject ${subject}`;
-        
+
         if (!subjectStats[subject]) {
-            subjectStats[subject] = {
-                total: 0,
-                count: 0,
-                scores: [],
-                recentScore: null,
-                title: subjectTitle
-            };
+            subjectStats[subject] = { total: 0, count: 0, recentScore: null };
         }
-        
-        subjectStats[subject].total += attempt.score;
+
+        subjectStats[subject].total += attempt.score || 0;
         subjectStats[subject].count++;
-        subjectStats[subject].scores.push(attempt.score);
-        subjectStats[subject].recentScore = attempt.score; // Track most recent score
+        subjectStats[subject].recentScore = attempt.score || 0;
         subjectTitles[subject] = subjectTitle;
     });
 
     const subjects = Object.keys(subjectStats);
-    const averages = subjects.map(subject => 
-        Math.round(subjectStats[subject].total / subjectStats[subject].count)
-    );
-    const labels = subjects.map(subject => subjectTitles[subject]);
+    
+    if (subjects.length === 0) {
+        container.innerHTML = `
+            <div class="p-6 bg-neutral-800 rounded-lg shadow-lg text-center">
+                <div class="text-gray-400">No subject data available</div>
+            </div>
+        `;
+        return;
+    }
 
-    subjectChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Average Score',
-                data: averages,
-                backgroundColor: 'rgba(74, 222, 128, 0.8)',
-                borderRadius: 8,
-                borderWidth: 0,
-                hoverBackgroundColor: 'rgba(34, 197, 94, 0.9)',
-                maxBarThickness: 40
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.05)',
-                        drawBorder: false
-                    },
-                    border: {
-                        display: false
-                    },
-                    ticks: {
-                        color: '#9ca3af',
-                        font: {
-                            size: 12,
-                            family: 'Inter, system-ui, sans-serif'
-                        },
-                        padding: 10,
-                        callback: value => value + '%'
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    },
-                    border: {
-                        display: false
-                    },
-                    ticks: {
-                        color: '#9ca3af',
-                        font: {
-                            size: 12,
-                            family: 'Inter, system-ui, sans-serif'
-                        },
-                        maxRotation: 45,
-                        minRotation: 45,
-                        padding: 10
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                    titleColor: '#ffffff',
-                    bodyColor: '#ffffff',
-                    bodyFont: {
-                        size: 14,
-                        family: 'Inter, system-ui, sans-serif'
-                    },
-                    titleFont: {
-                        size: 16,
-                        family: 'Inter, system-ui, sans-serif',
-                        weight: 'bold'
-                    },
-                    padding: 12,
-                    cornerRadius: 8,
-                    displayColors: false,
-                    callbacks: {
-                        title: (tooltipItems) => labels[tooltipItems[0].dataIndex],
-                        label: (context) => {
-                            const subjectId = subjects[context.dataIndex];
-                            const stats = subjectStats[subjectId];
-                            return [
-                                `Average: ${context.raw}%`,
-                                `Recent: ${stats.recentScore}%`,
-                                `Total: ${stats.count} quiz${stats.count !== 1 ? 'zes' : ''}`
-                            ];
-                        }
-                    }
-                }
-            }
-        }
-    });
+    const subjectRows = subjects.map(subject => {
+        const stats = subjectStats[subject];
+        const avg = Math.round(stats.total / stats.count);
+        const recent = stats.recentScore;
+        return `
+            <div class="flex items-center justify-between p-4 border-b border-neutral-700 last:border-0">
+                <div class="flex-1">
+                    <div class="font-medium text-white">${subjectTitles[subject]}</div>
+                </div>
+                <div class="flex items-center gap-6">
+                    <div class="text-sm">
+                        <span class="text-gray-400">Avg:</span>
+                        <span class="ml-1 font-medium ${avg >= 80 ? 'text-green-400' : avg >= 60 ? 'text-yellow-400' : 'text-red-400'}"> ${avg}%</span>
+                    </div>
+                    <div class="text-sm">
+                        <span class="text-gray-400">Recent:</span>
+                        <span class="ml-1 font-medium text-blue-400">${recent}%</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="bg-neutral-800 rounded-lg shadow-lg overflow-hidden">
+            <div class="p-4 border-b border-neutral-700">
+                <h3 class="text-lg font-bold text-green-400">Subject Performance</h3>
+            </div>
+            <div class="divide-y divide-neutral-700">
+                ${subjectRows}
+            </div>
+        </div>
+    `;
 }
+
+
+
 
 // Helper functions
 function formatDate(date) {
