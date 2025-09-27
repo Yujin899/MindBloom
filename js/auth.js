@@ -136,35 +136,24 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         try {
             console.log('User authenticated:', user.uid);
-            // Quick debug test: attempt a small write to a debug collection to surface permission issues immediately
-            async function debugTestWrite() {
-                if (!window.__enableFirestoreDebugWrites) return;
-                const debugRef = doc(db, '_debug', `test_${user.uid}`);
+
+            // Only proceed with document creation if this is not a Google sign-in popup
+            // (since the popup flow will handle document creation)
+            if (!localStorage.getItem('handlingGoogleSignIn')) {
+                // Ensure user document exists or is updated in Firestore
+                const userDocRef = doc(db, "users", user.uid);
+                console.log('Checking Firestore document for user:', user.uid);
+                
                 try {
-                    await setDoc(debugRef, { uid: user.uid, ts: serverTimestamp() });
-                    console.log('Debug write succeeded: _debug/test_' + user.uid);
-                } catch (err) {
-                    console.error('Debug write failed:', err, 'code=', err && err.code, 'message=', err && err.message);
-                    if (err && (err.code === 'permission-denied' || err.code === 'PERMISSION_DENIED')) {
+                    await writeUserDoc(user, 'session');
+                    console.log('All operations successful, redirecting...');
+                    window.location.href = './index.html';
+                } catch (firestoreError) {
+                    console.error('Firestore operation failed:', firestoreError);
+                    if (firestoreError && (firestoreError.code === 'permission-denied' || firestoreError.code === 'PERMISSION_DENIED')) {
                         showFirestorePermissionHelp();
                     }
-                    // Rethrow so outer flow can stop redirecting
-                    throw err;
                 }
-            }
-
-            // Ensure user document exists or is updated in Firestore
-            const userDocRef = doc(db, "users", user.uid);
-            console.log('Checking Firestore document for user:', user.uid);
-            // Run debug write first to ensure we can write anywhere; will throw on permission error
-            await debugTestWrite();
-            
-            try {
-                await writeUserDoc(user, 'session');
-                console.log('All operations successful, redirecting...');
-                window.location.href = './index.html';
-            } catch (firestoreError) {
-                console.error('Firestore operation failed:', firestoreError);
             }
         } catch (error) {
             console.error('Authentication error:', {
@@ -188,6 +177,9 @@ const googleSignInBtn = document.getElementById('googleSignInBtn');
 // Add click event listener to the sign-in button
 googleSignInBtn.addEventListener('click', async () => {
     try {
+        // Set flag to prevent duplicate document creation
+        localStorage.setItem('handlingGoogleSignIn', 'true');
+        
         // Sign in with Google
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
@@ -221,6 +213,9 @@ googleSignInBtn.addEventListener('click', async () => {
 
         // Store a timestamp of when the user explicitly signed in
         localStorage.setItem('lastExplicitSignIn', new Date().toISOString());
+        
+        // Clear the Google sign-in flag
+        localStorage.removeItem('handlingGoogleSignIn');
 
         // Redirect to the main page after successful sign-in
         window.location.href = './index.html';
