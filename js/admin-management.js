@@ -8,7 +8,8 @@ import {
     updateDoc,
     deleteDoc,
     doc,
-    writeBatch
+    writeBatch,
+    getDoc
 } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
 // Admin Management

@@ -107,7 +107,7 @@ async function writeUserDoc(user, loginType = 'session') {
             email: user.email || null,
             name: user.displayName || null,
             photoURL: user.photoURL || null,
-            admin: false,
+            isAdmin: false,
             lastLogin: serverTimestamp(),
             loginType: loginType,
             accountType: 'google'
