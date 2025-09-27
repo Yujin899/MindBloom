@@ -4,7 +4,7 @@ service cloud.firestore {
     // Function to check if user is admin
     function isAdmin() {
       let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-      return request.auth != null && userDoc != null && userDoc.data.admin == true;
+      return request.auth != null && userDoc != null && userDoc.data.isAdmin == true;
     }
 
     // Debug collection: allow the admin to access

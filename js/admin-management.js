@@ -56,7 +56,7 @@ window.toggleAdminStatus = async function(userId, makeAdmin) {
 
 window.deleteSubject = async function(subjectId) {
     const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-    if (!userDoc.exists() || !userDoc.data().admin) {
+    if (!userDoc.exists() || !userDoc.data().isAdmin) {
         showAlert('error', 'Unauthorized: Only admins can delete subjects');
         return;
     }
@@ -88,7 +88,7 @@ window.deleteSubject = async function(subjectId) {
 
 window.deleteQuiz = async function(subjectId, quizId) {
     const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-    if (!userDoc.exists() || !userDoc.data().admin) {
+    if (!userDoc.exists() || !userDoc.data().isAdmin) {
         showAlert('error', 'Unauthorized: Only admins can delete quizzes');
         return;
     }
@@ -120,7 +120,7 @@ const subjectSelect = document.getElementById('subjectSelect');
 // Event Listeners
 document.getElementById('manageAdminsBtn').addEventListener('click', async () => {
     const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
-    if (!userDoc.exists() || !userDoc.data().admin) {
+    if (!userDoc.exists() || !userDoc.data().isAdmin) {
         showAlert('error', 'Unauthorized: Only admins can access this section');
         return;
     }
@@ -154,7 +154,8 @@ subjectSelect.addEventListener('change', (e) => {
 async function loadUsers() {
     try {
         // Check if current user is the admin
-        if (auth.currentUser?.email !== 'emad76065@gmail.com') {
+        const currentUserDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (!currentUserDoc.exists() || !currentUserDoc.data().isAdmin) {
             throw new Error('Unauthorized access');
         }
         const usersSnapshot = await getDocs(collection(db, 'users'));
@@ -193,7 +194,7 @@ function displayUsers(users) {
 }
 
 function displayAdmins() {
-    const admins = window.allUsers.filter(user => user.admin);
+    const admins = window.allUsers.filter(user => user.isAdmin);
     adminsList.innerHTML = admins.map(admin => `
         <div class="flex items-center justify-between p-3 bg-neutral-800 rounded-lg">
             <div>

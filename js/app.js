@@ -89,7 +89,7 @@ async function initializeApp(user) {
             const userDocRef = doc(db, 'users', user.uid);
             const userDoc = await getDoc(userDocRef);
             
-            if (adminPanelLink && userDoc.exists() && userDoc.data().admin === true) {
+            if (adminPanelLink && userDoc.exists() && userDoc.data().isAdmin === true) {
                 adminPanelLink.classList.remove('hidden');
                 adminPanelLink.classList.add('flex');
             } else if (adminPanelLink) {
