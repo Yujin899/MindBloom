@@ -55,8 +55,9 @@ window.toggleAdminStatus = async function(userId, makeAdmin) {
 };
 
 window.deleteSubject = async function(subjectId) {
-    if (auth.currentUser?.email !== 'emad76065@gmail.com') {
-        showAlert('error', 'Unauthorized: Only the admin can delete subjects');
+    const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+    if (!userDoc.exists() || !userDoc.data().admin) {
+        showAlert('error', 'Unauthorized: Only admins can delete subjects');
         return;
     }
     
@@ -86,8 +87,9 @@ window.deleteSubject = async function(subjectId) {
 };
 
 window.deleteQuiz = async function(subjectId, quizId) {
-    if (auth.currentUser?.email !== 'emad76065@gmail.com') {
-        showAlert('error', 'Unauthorized: Only the admin can delete quizzes');
+    const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+    if (!userDoc.exists() || !userDoc.data().admin) {
+        showAlert('error', 'Unauthorized: Only admins can delete quizzes');
         return;
     }
 
@@ -117,8 +119,9 @@ const subjectSelect = document.getElementById('subjectSelect');
 
 // Event Listeners
 document.getElementById('manageAdminsBtn').addEventListener('click', async () => {
-    if (auth.currentUser?.email !== 'emad76065@gmail.com') {
-        showAlert('error', 'Unauthorized: Only the admin can access this section');
+    const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+    if (!userDoc.exists() || !userDoc.data().admin) {
+        showAlert('error', 'Unauthorized: Only admins can access this section');
         return;
     }
     adminManagementModal.classList.remove('hidden');
@@ -190,7 +193,7 @@ function displayUsers(users) {
 }
 
 function displayAdmins() {
-    const admins = window.allUsers.filter(user => user.isAdmin);
+    const admins = window.allUsers.filter(user => user.admin);
     adminsList.innerHTML = admins.map(admin => `
         <div class="flex items-center justify-between p-3 bg-neutral-800 rounded-lg">
             <div>

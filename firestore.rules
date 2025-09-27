@@ -1,9 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Function to check if user is admin (only specific email)
+    // Function to check if user is admin
     function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'emad76065@gmail.com';
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return request.auth != null && userDoc != null && userDoc.data.admin == true;
     }
 
     // Debug collection: allow the admin to access
