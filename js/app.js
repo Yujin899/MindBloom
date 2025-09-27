@@ -1,6 +1,6 @@
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
-import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+import { collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
 // DOM Elements
 const userAvatar = document.getElementById('userAvatar');
@@ -85,19 +85,23 @@ async function initializeApp(user) {
         
         // Check if user is admin
         const adminPanelLink = document.getElementById('adminPanelLink');
-        const userEmail = user.email;
-        const adminEmails = [
-            'badorajj@gmail.com',
-            'emad76065@gmail.com',
-            // Add other admin emails here
-        ];
-        
-        if (adminPanelLink && adminEmails.includes(userEmail)) {
-            adminPanelLink.classList.remove('hidden');
-            adminPanelLink.classList.add('flex');
-        } else if (adminPanelLink) {
-            adminPanelLink.classList.add('hidden');
-            adminPanelLink.classList.remove('flex');
+        try {
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+            
+            if (adminPanelLink && userDoc.exists() && userDoc.data().isAdmin === true) {
+                adminPanelLink.classList.remove('hidden');
+                adminPanelLink.classList.add('flex');
+            } else if (adminPanelLink) {
+                adminPanelLink.classList.add('hidden');
+                adminPanelLink.classList.remove('flex');
+            }
+        } catch (error) {
+            console.error('Error checking admin status:', error);
+            if (adminPanelLink) {
+                adminPanelLink.classList.add('hidden');
+                adminPanelLink.classList.remove('flex');
+            }
         }
         
         // Handle avatar click
