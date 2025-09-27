@@ -927,9 +927,11 @@ async function completeQuiz() {
             score: Math.round((correctAnswers / quiz.questions.length) * 100) // Store score as percentage
         };
 
-        const docRef = await addDoc(collection(db, 'quizAttempts'), attemptData);
-        console.log('Quiz attempt saved with ID:', docRef.id);
-        console.debug('Quiz attempt details:', { ...attemptData, timestamp: 'serverTimestamp' });
+    // Save attempt under the user's subcollection: users/{uid}/quizAttempts
+    const attemptsColRef = collection(db, 'users', auth.currentUser.uid, 'quizAttempts');
+    const docRef = await addDoc(attemptsColRef, attemptData);
+    console.log(`Quiz attempt saved under users/${auth.currentUser.uid}/quizAttempts with ID:`, docRef.id);
+    console.debug('Quiz attempt details:', { ...attemptData, timestamp: 'serverTimestamp' });
     } catch (error) {
         console.error('Error saving quiz attempt:', error);
     }

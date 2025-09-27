@@ -46,14 +46,13 @@ async function handleQuerySnapshot(queryObj, user) {
         return querySnapshot;
     } catch (error) {
         if (error.code === 'failed-precondition') {
-            console.warn('Using fallback query without sorting. To enable proper sorting, create the required index at:', error.message);
-            // Fallback to a simpler query without ordering
-            const fallbackQuery = query(
-                collection(db, 'quizAttempts'),
-                where('userId', '==', user.uid),
-                limit(MAX_QUIZ_HISTORY)
-            );
-            const fallbackSnapshot = await getDocs(fallbackQuery);
+                console.warn('Using fallback query without sorting. To enable proper sorting, create the required index at:', error.message);
+                // Fallback to a simpler query without ordering on the user's subcollection
+                const fallbackQuery = query(
+                    collection(db, 'users', user.uid, 'quizAttempts'),
+                    limit(MAX_QUIZ_HISTORY)
+                );
+                const fallbackSnapshot = await getDocs(fallbackQuery);
             
             // Sort the results in memory if we have any results
             if (fallbackSnapshot.size > 0) {
@@ -85,10 +84,9 @@ async function loadUserProfile(user) {
         userName.textContent = user.displayName || 'User';
         userEmail.textContent = user.email;
 
-        // Get quiz attempts with ordering
+        // Get quiz attempts from user's subcollection with ordering
         const attemptsQuery = query(
-            collection(db, 'quizAttempts'),
-            where('userId', '==', user.uid),
+            collection(db, 'users', user.uid, 'quizAttempts'),
             orderBy('timestamp', 'desc'),
             limit(MAX_QUIZ_HISTORY)
         );

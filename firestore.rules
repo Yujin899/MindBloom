@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Debug collection: allow the signed-in user to create/update/delete debug docs that contain their uid
+    match /_debug/{docId} {
+      allow create, update, delete: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+    }
+
+    // User document: each user can manage their own doc
+    match /users/{userId} {
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+
+      // Subcollection: quizAttempts under users/{userId}
+      match /quizAttempts/{attemptId} {
+        // Allow the signed-in user to read their own quiz attempts
+        allow read: if request.auth != null && request.auth.uid == userId;
+
+        // Allow the signed-in user to create attempts where the stored userId matches them
+        allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+
+        // Optional: allow updates/deletes only if the attempt belongs to the user
+        allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      }
+    }
+
+    // Top-level quizAttempts (if used elsewhere in app)
+    match /quizAttempts/{attemptId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Subjects and nested quizzes: read for authenticated users
+    match /subjects/{subjectId} {
+      allow read: if request.auth != null;
+      match /quizzes/{quizId} {
+        allow read: if request.auth != null;
+      }
+    }
+  }
+}
