@@ -13,12 +13,15 @@ const quizItemTemplate = document.getElementById('quizItemTemplate');
 // Authentication check function
 export function checkAuth() {
     return new Promise((resolve, reject) => {
+        // Keep the listener active to handle auth state changes
         const unsubscribe = onAuthStateChanged(auth, (user) => {
-            unsubscribe(); // Stop listening immediately
             if (user) {
                 resolve(user);
             } else {
-                window.location.href = 'auth.html';
+                // Only redirect if we're not already on the auth page
+                if (!window.location.pathname.includes('auth.html')) {
+                    window.location.href = 'auth.html';
+                }
                 reject('User not authenticated');
             }
         });
@@ -80,7 +83,21 @@ async function initializeApp(user) {
         
         // Update user info in header if avatar element exists
         if (userAvatar) {
-            userAvatar.src = user.photoURL || '/path/to/default-avatar.png';
+            // Get the user document to access avatar data
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+            const userData = userDoc.data();
+            const username = user.email.split('@')[0]; // Get username part before @
+
+            if (userData && userData.avatar && userData.avatar.type === 'letter') {
+                // Use avatar data from user document
+                userAvatar.style.backgroundColor = userData.avatar.backgroundColor;
+                userAvatar.textContent = userData.avatar.letter;
+            } else {
+                // Fallback to first letter of username with default color
+                userAvatar.style.backgroundColor = '#4B5563'; // gray-600
+                userAvatar.textContent = username[0].toUpperCase();
+            }
         }
         
         // Check if user is admin

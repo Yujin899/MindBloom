@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile - MindBloom</title>
     <link href="./src/output.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="bg-black text-white min-h-screen">
     <!-- Loading Screen -->
@@ -26,7 +27,7 @@
             <!-- User Info Card -->
             <div class="md:col-span-4 bg-neutral-800 rounded-lg p-6">
                 <div class="text-center mb-6">
-                    <img id="userAvatar" class="w-24 h-24 rounded-full mx-auto mb-4" alt="Profile Picture">
+                    <div id="userAvatar" class="w-10 h-10 mx-auto mb-4 rounded-full flex items-center justify-center text-2xl font-semibold" style="aspect-ratio: 1"></div>
                     <h2 id="userName" class="text-xl font-bold"></h2>
                     <p id="userEmail" class="text-gray-400"></p>
                 </div>
@@ -79,6 +80,7 @@
                                     <th class="py-3 px-4">Score</th>
                                     <th class="py-3 px-4">Date</th>
                                     <th class="py-3 px-4">Time Taken</th>
+                                    <th class="py-3 px-4">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="recentQuizzesList">

@@ -4,26 +4,65 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="./src/output.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="bg-black flex items-center justify-center h-screen text-gray-100">
   <div class="bg-neutral-800 p-8 rounded-2xl shadow-lg w-96 text-center space-y-6">
     <h1 class="text-4xl font-bold text-green-400 mb-2">MindBloom</h1>
-    <h1 class="text-white text-xl font-bold">Welcome Back</h1>
-    <p class="text-neutral-400">Sign in to continue</p>
-    
-    <button id="googleSignInBtn"
-      class="w-full flex items-center justify-center gap-3 bg-green-400 cursor-pointer text-black font-semibold py-3 rounded-xl 
-              hover:scale-102
-             transition-all duration-300">
-      <!-- Google Icon -->
-      <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C34.9 33.3 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 3.1l5.7-5.7C34.7 6.2 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.7-8 19.7-20 0-1.3-.1-2.7-.4-3.5z"/>
-        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.3 16.1 18.8 13 24 13c3.1 0 5.9 1.1 8.1 3.1l5.7-5.7C34.7 6.2 29.6 4 24 4c-7.5 0-13.9 4.1-17.7 10.7z"/>
-        <path fill="#4CAF50" d="M24 44c5.6 0 10.7-2.1 14.6-5.6l-6.7-5.5C29.9 34.9 27 36 24 36c-6.1 0-10.9-3.7-12.7-8.7l-6.6 5.1C10.1 39.7 16.6 44 24 44z"/>
-        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.2 3.3-4.6 6-8.3 6-3.1 0-5.9-1.1-8.1-3.1l-5.7 5.7C14.3 41.9 19.1 44 24 44c11 0 19.7-8 19.7-20 0-1.3-.1-2.7-.4-3.5z"/>
-      </svg>
-      Sign in with Google
-    </button>
+    <div id="authForms">
+      <!-- Sign In Form -->
+      <div id="signInForm" class="space-y-4">
+        <h2 class="text-white text-xl font-bold">Welcome Back</h2>
+        <p class="text-neutral-400">Sign in to continue</p>
+        <div class="space-y-3">
+          <div class="flex items-center bg-neutral-700 rounded-xl overflow-hidden">
+            <input type="text" id="signInUsername" 
+                   class="flex-1 bg-transparent py-3 px-4 text-white focus:outline-none"
+                   placeholder="Username">
+            <span class="pr-4 text-white font-mono">@dento.so</span>
+          </div>
+          <input type="password" id="signInPassword" 
+                 class="w-full bg-neutral-700 py-3 px-4 rounded-xl text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-green-400"
+                 placeholder="Password">
+          <button id="signInBtn"
+                  class="w-full bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-500 transition-colors">
+            Sign In
+          </button>
+        </div>
+        <p class="text-neutral-400">
+          Don't have an account? 
+          <button id="showSignUpBtn" class="text-green-400 hover:text-green-500">Sign Up</button>
+        </p>
+      </div>
+
+      <!-- Sign Up Form -->
+      <div id="signUpForm" class="hidden space-y-4">
+        <h2 class="text-white text-xl font-bold">Create Account</h2>
+        <p class="text-neutral-400">Sign up to get started</p>
+        <div class="space-y-3">
+          <div class="flex items-center bg-neutral-700 rounded-xl overflow-hidden ring-offset-2 focus-within:ring-2 focus-within:ring-green-400">
+            <input type="text" id="signUpUsername" 
+                   class="flex-1 bg-transparent py-3 px-4 text-white focus:outline-none"
+                   placeholder="Username">
+            <span class="pr-4 text-white font-mono">@dento.so</span>
+          </div>
+          <input type="password" id="signUpPassword" 
+                 class="w-full bg-neutral-700 py-3 px-4 rounded-xl text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-green-400"
+                 placeholder="Password">
+          <input type="password" id="signUpConfirmPassword" 
+                 class="w-full bg-neutral-700 py-3 px-4 rounded-xl text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-green-400"
+                 placeholder="Confirm Password">
+          <button id="signUpBtn"
+                  class="w-full bg-green-400 text-black font-semibold py-3 rounded-xl hover:bg-green-500 transition-colors">
+            Sign Up
+          </button>
+        </div>
+        <p class="text-neutral-400">
+          Already have an account? 
+          <button id="showSignInBtn" class="text-green-400 hover:text-green-500">Sign In</button>
+        </p>
+      </div>
+    </div>
   </div>
   <script type="module" src="./js/auth.js"></script>
 </body>

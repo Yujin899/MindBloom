@@ -1,5 +1,11 @@
 import { auth, db } from './firebase-config.js';
-import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
+import { 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword, 
+    onAuthStateChanged,
+    setPersistence,
+    browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
 import { doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
 // Helper: show instructions if Firestore permission errors occur
@@ -91,8 +97,8 @@ async function writeUserDoc(user, loginType = 'session') {
         } catch (err) {
             console.error('Debug write failed:', err);
             setStatusMessage('Debug write failed: ' + (err && err.code ? err.code : err.message || 'unknown'), false);
-            if (err && (err.code === 'permission-denied' || err.code === 'PERMISSION_DENIED')) showFirestorePermissionHelp();
-            throw err;
+            // Continue with user document creation even if debug write fails
+            console.log('Continuing with user document creation despite debug write failure');
         }
     } else {
         // Skip debug write in normal runs to avoid triggering rules failures
@@ -103,14 +109,20 @@ async function writeUserDoc(user, loginType = 'session') {
     const userDocRef = doc(db, 'users', user.uid);
     try {
         const userDoc = await getDoc(userDocRef);
+        const username = user.email.split('@')[0]; // Extract username from email
+        const avatarData = generateAvatarData(username);
         const baseData = {
-            email: user.email || null,
-            name: user.displayName || null,
-            photoURL: user.photoURL || null,
+            email: user.email,
+            username: username,
             isAdmin: false,
             lastLogin: serverTimestamp(),
             loginType: loginType,
-            accountType: 'google'
+            accountType: 'email',
+            avatar: {
+                type: 'letter',
+                letter: avatarData.firstLetter,
+                backgroundColor: avatarData.backgroundColor
+            }
         };
         if (!userDoc.exists()) {
             const data = { ...baseData, createdAt: serverTimestamp() };
@@ -126,7 +138,11 @@ async function writeUserDoc(user, loginType = 'session') {
     } catch (err) {
         console.error('Failed to write user doc:', err);
         setStatusMessage('Failed to write user document: ' + (err && err.code ? err.code : err.message || 'unknown'), false);
-        if (err && (err.code === 'permission-denied' || err.code === 'PERMISSION_DENIED')) showFirestorePermissionHelp();
+        // Only show permission help if the write actually failed
+        if (err && (err.code === 'permission-denied' || err.code === 'PERMISSION_DENIED')) {
+            console.error('Permission error writing user document');
+            throw err;
+        }
         throw err;
     }
 }
@@ -136,25 +152,9 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         try {
             console.log('User authenticated:', user.uid);
-
-            // Only proceed with document creation if this is not a Google sign-in popup
-            // (since the popup flow will handle document creation)
-            if (!localStorage.getItem('handlingGoogleSignIn')) {
-                // Ensure user document exists or is updated in Firestore
-                const userDocRef = doc(db, "users", user.uid);
-                console.log('Checking Firestore document for user:', user.uid);
-                
-                try {
-                    await writeUserDoc(user, 'session');
-                    console.log('All operations successful, redirecting...');
-                    window.location.href = './index.html';
-                } catch (firestoreError) {
-                    console.error('Firestore operation failed:', firestoreError);
-                    if (firestoreError && (firestoreError.code === 'permission-denied' || firestoreError.code === 'PERMISSION_DENIED')) {
-                        showFirestorePermissionHelp();
-                    }
-                }
-            }
+            // Just redirect on sign in, no need to write document
+            console.log('Sign in successful, redirecting...');
+            window.location.href = './index.html';
         } catch (error) {
             console.error('Authentication error:', {
                 error: error,
@@ -168,59 +168,124 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// Initialize Google Auth Provider
-const provider = new GoogleAuthProvider();
+// Form switching functionality
+const signInForm = document.getElementById('signInForm');
+const signUpForm = document.getElementById('signUpForm');
+const showSignUpBtn = document.getElementById('showSignUpBtn');
+const showSignInBtn = document.getElementById('showSignInBtn');
 
-// Get the sign-in button
-const googleSignInBtn = document.getElementById('googleSignInBtn');
+showSignUpBtn.addEventListener('click', () => {
+    signInForm.classList.add('hidden');
+    signUpForm.classList.remove('hidden');
+});
 
-// Add click event listener to the sign-in button
-googleSignInBtn.addEventListener('click', async () => {
+showSignInBtn.addEventListener('click', () => {
+    signUpForm.classList.add('hidden');
+    signInForm.classList.remove('hidden');
+});
+
+// Helper function to create email from username
+function createEmail(username) {
+    return `${username}@dento.so`;
+}
+
+// Generate random color for avatar background
+function generateRandomColor() {
+    const colors = [
+        '#F87171', '#FB923C', '#FBBF24', '#34D399', '#60A5FA',
+        '#818CF8', '#A78BFA', '#E879F9', '#FB7185', '#4ADE80'
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+}
+
+// Generate avatar data with first letter and background color
+function generateAvatarData(email) {
+    const firstLetter = email[0].toUpperCase();
+    const backgroundColor = generateRandomColor();
+    return { firstLetter, backgroundColor };
+}
+
+// Show error message using SweetAlert2
+function showError(message) {
+    Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: message,
+        confirmButtonColor: '#4ade80',
+        background: '#1f2937',
+        color: '#f3f4f6'
+    });
+}
+
+// Sign Up functionality
+const signUpBtn = document.getElementById('signUpBtn');
+signUpBtn.addEventListener('click', async () => {
+    const username = document.getElementById('signUpUsername').value.trim();
+    const password = document.getElementById('signUpPassword').value;
+    const confirmPassword = document.getElementById('signUpConfirmPassword').value;
+
+    // Validation
+    if (!username || !password) {
+        showError('Please fill in all fields');
+        return;
+    }
+
+    if (password !== confirmPassword) {
+        showError('Passwords do not match');
+        return;
+    }
+
+    if (username.includes('@') || username.includes('.')) {
+        showError('Username should not contain @ or . characters');
+        return;
+    }
+
     try {
-        // Set flag to prevent duplicate document creation
-        localStorage.setItem('handlingGoogleSignIn', 'true');
-        
-        // Sign in with Google
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        
-        console.log('Google sign-in successful, user:', user.uid);
-        
-        // Create or update user document in Firestore
-        const userDocRef = doc(db, "users", user.uid);
-        console.log('Checking Firestore document for Google sign-in user:', user.uid);
-        // Debug write to surface permission issues early (only when enabled)
-        if (window.__enableFirestoreDebugWrites) {
-            const debugRef = doc(db, '_debug', `test_${user.uid}`);
-            try {
-                await setDoc(debugRef, { uid: user.uid, ts: serverTimestamp() });
-                console.log('Debug write succeeded in popup flow: _debug/test_' + user.uid);
-            } catch (err) {
-                console.error('Debug write failed in popup flow:', err, 'code=', err && err.code, 'message=', err && err.message);
-                if (err && (err.code === 'permission-denied' || err.code === 'PERMISSION_DENIED')) {
-                    showFirestorePermissionHelp();
-                }
-                throw err; // Let outer catch handle it
-            }
-        }
+        const email = createEmail(username);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-        try {
-            await writeUserDoc(user, 'explicit');
-        } catch (firestoreError) {
-            console.error('Firestore operation failed during Google sign-in:', firestoreError);
-            throw firestoreError;
-        }
+        // Create the user document
+        await writeUserDoc(user, 'signup', username);
 
-        // Store a timestamp of when the user explicitly signed in
-        localStorage.setItem('lastExplicitSignIn', new Date().toISOString());
-        
-        // Clear the Google sign-in flag
-        localStorage.removeItem('handlingGoogleSignIn');
-
-        // Redirect to the main page after successful sign-in
+        // Redirect to main page
         window.location.href = './index.html';
     } catch (error) {
-        console.error("Error during sign in:", error);
-        // You can add proper error handling here (e.g., showing an error message to the user)
+        console.error('Error during sign up:', error);
+        showError(error.message);
+    }
+});
+
+// Set persistence to LOCAL (survives browser restarts)
+await setPersistence(auth, browserLocalPersistence)
+    .catch((error) => {
+        console.error('Error setting persistence:', error);
+    });
+
+// Sign In functionality
+const signInBtn = document.getElementById('signInBtn');
+signInBtn.addEventListener('click', async () => {
+    const username = document.getElementById('signInUsername').value.trim();
+    const password = document.getElementById('signInPassword').value;
+
+    if (!username || !password) {
+        showError('Please fill in all fields');
+        return;
+    }
+
+    try {
+        const email = createEmail(username);
+        await signInWithEmailAndPassword(auth, email, password);
+        // We don't need to write any document for sign in
+        // Redirect will be handled by onAuthStateChanged
+    } catch (error) {
+        console.error('Error during sign in:', error);
+        if (error.code === 'auth/invalid-credential' || 
+            error.code === 'auth/wrong-password' || 
+            error.code === 'auth/user-not-found') {
+            showError('Invalid username or password');
+        } else {
+            showError(error.message);
+        }
     }
 });

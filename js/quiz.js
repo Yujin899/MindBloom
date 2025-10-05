@@ -50,11 +50,23 @@ function hideLoading() {
     }
 }
 
+
+
 // Quiz state
 let quiz = null;
 let currentQuestionIndex = 0;
 let userAnswers = [];
 let userCorrect = [];
+
+// Function to reset quiz state
+function resetQuizState() {
+    quiz = null;
+    currentQuestionIndex = 0;
+    userAnswers = [];
+    userCorrect = [];
+    currentScore = 0;
+    streakCount = 0;
+}
 let timeRemaining = null; // Will be set from quiz.timeLimit
 let timerInterval;
 let currentScore = 0;
@@ -69,6 +81,12 @@ const MAX_STREAK_BONUS = 500;
 // Initialize the quiz
 async function initializeQuiz() {
     try {
+        // Clear any existing quiz data
+        quiz = null;
+        currentQuestionIndex = 0;
+        userAnswers = [];
+        userCorrect = [];
+        
         updateLoadingStatus('Checking authentication...');
         await checkAuth();
         
@@ -153,8 +171,12 @@ async function getHighScore(quizId, subjectId) {
 }
 
 // Update global high score if new score is higher
-async function updateHighScore(quizId, subjectId, newScore, userName) {
+async function updateHighScore(quizId, subjectId, newScore) {
     try {
+        // Get user data to ensure we have a valid username
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        const userData = userDoc.data();
+        const username = userData?.username || auth.currentUser.email.split('@')[0];
         if (!quizId || !subjectId) {
             console.error('Missing quiz ID or subject ID');
             return false;
@@ -174,12 +196,12 @@ async function updateHighScore(quizId, subjectId, newScore, userName) {
         if (newScore > currentHighScore) {
             const updateData = {
                 globalHighScore: newScore,
-                globalHighScoreHolder: userName,
+                globalHighScoreHolder: username,
                 globalHighScoreDate: serverTimestamp(),
                 // Also store this attempt in the history
                 lastAttempt: {
                     score: newScore,
-                    player: userName,
+                    player: username,
                     date: serverTimestamp()
                 }
             };
@@ -228,6 +250,27 @@ function calculateScoreWithBonus(isCorrect) {
     }
 }
 
+// Save progress to localStorage
+function saveProgress() {
+    if (quiz && timeRemaining > 0) {
+        const saveData = {
+            timeRemaining: timeRemaining,
+            answers: userAnswers,
+            correct: userCorrect,
+            questions: quiz.questions, // Save shuffled questions
+            timestamp: new Date().getTime()
+        };
+        localStorage.setItem(`quiz_${quiz.id}`, JSON.stringify(saveData));
+        console.log('Saved progress with time:', timeRemaining, 'seconds');
+    }
+}
+
+// Clear saved progress
+function clearProgress(quizId) {
+    localStorage.removeItem(`quiz_${quizId}`);
+    console.log(`Cleared progress for quiz ${quizId}`);
+}
+
 // Load saved progress from localStorage with expiration check
 function loadSavedProgress(quizId) {
     const savedData = localStorage.getItem(`quiz_${quizId}`);
@@ -245,27 +288,10 @@ function loadSavedProgress(quizId) {
         userAnswers = data.answers || [];
         userCorrect = data.correct || [];
         timeRemaining = data.timeRemaining || (quiz.timeLimit || 30) * 60;
+        quiz.questions = data.questions || quiz.questions; // Restore shuffled questions
         return true;
     }
     return false;
-}
-
-// Save progress to localStorage
-function saveProgress() {
-    if (quiz && timeRemaining > 0) {
-        const saveData = {
-            timeRemaining: timeRemaining,
-            timestamp: new Date().getTime()
-        };
-        localStorage.setItem(`quiz_${quiz.id}`, JSON.stringify(saveData));
-        console.log('Saved progress with time:', timeRemaining, 'seconds');
-    }
-}
-
-// Clear saved progress
-function clearProgress(quizId) {
-    localStorage.removeItem(`quiz_${quizId}`);
-    console.log(`Cleared progress for quiz ${quizId}`);
 }
 
 // Handle page visibility change
@@ -355,6 +381,9 @@ window.addEventListener('offline', () => {
 
 // Check authentication and load quiz
 document.addEventListener('DOMContentLoaded', () => {
+    // Reset quiz state on page load
+    resetQuizState();
+    
     onAuthStateChanged(auth, async (user) => {
         console.log('Auth state changed:', user ? 'logged in' : 'logged out');
         if (user) {
@@ -388,12 +417,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadQuiz() {
     try {
-        // Reset all quiz state
-        currentQuestionIndex = 0;
-        userAnswers = [];
-        userCorrect = [];
-        currentScore = 0;
-        streakCount = 0;
+        // Reset quiz state and clear any saved progress
+        resetQuizState();
         
         // Get quiz ID and subject ID from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -419,9 +444,35 @@ async function loadQuiz() {
             throw new Error('The requested quiz could not be found. Please try again or select a different quiz.');
         }
 
-        const quizData = quizDoc.data();
-        console.log('Quiz data retrieved:', quizData);
-        
+        // Create quiz object with the document data
+        const docData = quizDoc.data();
+        quiz = {
+            id: quizDoc.id,
+            ...docData,
+            questions: [...docData.questions] // Make a copy of questions array
+        };
+
+        // Tag each question with its original index before shuffling
+        quiz.questions = quiz.questions.map((q, idx) => ({ ...q, originalIndex: idx }));
+
+        // Store original order for verification
+        const originalOrder = [...quiz.questions];
+
+        // Shuffle questions using Fisher-Yates shuffle
+        for (let i = quiz.questions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [quiz.questions[i], quiz.questions[j]] = [quiz.questions[j], quiz.questions[i]];
+        }
+
+        // Log the results
+        console.log('Original order:', originalOrder.map(q => 
+            q.question.substring(0, 30) + '...'
+        ));
+        console.log('Shuffled order:', quiz.questions.map(q => 
+            q.question.substring(0, 30) + '...'
+        ));
+        console.log(`Questions shuffled: ${quiz.questions.length}`);
+
         // Set the time limit, but check for saved time first
         const savedProgress = localStorage.getItem(`quiz_${quizId}`);
         if (savedProgress) {
@@ -431,27 +482,28 @@ async function loadQuiz() {
                 timeRemaining = savedTime;
                 console.log('Restored saved time:', timeRemaining, 'seconds');
             } else {
-                timeRemaining = (quizData.timeLimit || 30) * 60; // Convert minutes to seconds
-                console.log('Invalid saved time, setting new time limit:', quizData.timeLimit, 'minutes');
+                timeRemaining = (quiz.timeLimit || 30) * 60; // Convert minutes to seconds
+                console.log('Invalid saved time, setting new time limit:', quiz.timeLimit, 'minutes');
             }
         } else {
-            timeRemaining = (quizData.timeLimit || 30) * 60; // Convert minutes to seconds
-            console.log('No saved progress, setting new time limit:', quizData.timeLimit, 'minutes');
+            timeRemaining = (quiz.timeLimit || 30) * 60; // Convert minutes to seconds
+            console.log('No saved progress, setting new time limit:', quiz.timeLimit, 'minutes');
         }
         
-        if (!quizData) {
+        if (!quiz) {
             throw new Error('Quiz data is empty.');
         }
 
-        // Create normalized quiz structure
+        // Make sure quiz has all required fields
         quiz = {
-            id: quizId,
-            title: quizData.title || 'Untitled Quiz',
-            description: quizData.description || '',
+            ...quiz, // Keep existing quiz data
+            id: quizId, // Ensure ID is set
+            title: quiz.title || 'Untitled Quiz',
+            description: quiz.description || '',
             isReviewMode: false, // Initialize review mode flag
-            questions: Array.isArray(quizData.questions) ? quizData.questions :
-                      typeof quizData.questionCount === 'number' ? 
-                      Array.from({ length: quizData.questionCount }, (_, i) => ({
+            questions: Array.isArray(quiz.questions) ? quiz.questions :
+                      typeof quiz.questionCount === 'number' ? 
+                      Array.from({ length: quiz.questionCount }, (_, i) => ({
                           question: `Question ${i + 1}`,
                           options: ['Option A', 'Option B', 'Option C', 'Option D'],
                           correctAnswer: 0
@@ -473,9 +525,27 @@ async function loadQuiz() {
         userAnswers = new Array(quiz.questions.length).fill(undefined);
         userCorrect = new Array(quiz.questions.length).fill(false);
 
-        // Initialize quiz UI
-        await initializeQuiz();
+        // Initialize quiz UI using the already loaded and shuffled quiz
+        await setupQuizUI();
         console.log('Quiz loaded successfully:', quiz);
+        // Hide loading screen now that UI is ready
+        updateLoadingStatus('Ready to begin!');
+        setTimeout(hideLoading, 500);
+
+        // Update High Score display with holder name
+        try {
+            const highScoreDisplay = document.getElementById('highScore');
+            const currentHighScoreData = await getHighScore(quizId, currentSubjectId);
+            if (highScoreDisplay) {
+                if (currentHighScoreData.score > 0) {
+                    highScoreDisplay.textContent = ` ${currentHighScoreData.score} (${currentHighScoreData.holder})`;
+                } else {
+                    highScoreDisplay.textContent = ' No high score yet';
+                }
+            }
+        } catch (e) {
+            console.warn('Could not load high score display:', e);
+        }
 
     } catch (error) {
         console.error('Error loading quiz:', error);
@@ -526,6 +596,11 @@ async function setupQuizUI() {
         // Check authentication before proceeding
         await checkAuth();
         console.log('Initializing quiz UI...');
+        
+        // Verify we have the shuffled questions
+        if (!quiz || !quiz.questions || !Array.isArray(quiz.questions)) {
+            throw new Error('Quiz questions not properly initialized');
+        }
         
         // Initialize quiz UI
         if (!quiz || !quiz.title || !quiz.questions) {
@@ -649,6 +724,7 @@ function updateQuestionNavButton(button, index) {
 
 function showQuestion(index) {
     try {
+        if (!quiz || !quiz.questions) return;
         currentQuestionIndex = index;
         const question = quiz.questions[index];
 
@@ -733,6 +809,7 @@ function showQuestion(index) {
 
 function selectAnswer(answerIndex) {
     const question = quiz.questions[currentQuestionIndex];
+    // Check answer against the shuffled question's correct answer
     const isCorrect = answerIndex === question.correctAnswer;
     
     // Record the answer and whether it was correct
@@ -912,36 +989,103 @@ async function completeQuiz() {
         const timeTakenSeconds = (quiz.timeLimit || 30) * 60 - timeRemaining;
         const correctAnswers = userCorrect.filter(correct => correct).length;
         
+        if (!auth.currentUser) {
+            throw new Error('User not authenticated');
+        }
+
+        // Validate quiz data to ensure no undefined values
+        if (!quiz || !quiz.questions || !quiz.id) {
+            throw new Error('Invalid quiz data');
+        }
+
+        // Map the answers back to their original question order for storage
+        const orderedAnswers = new Array(quiz.questions.length);
+        const orderedCorrect = new Array(quiz.questions.length);
+        quiz.questions.forEach((q, index) => {
+            orderedAnswers[q.originalIndex] = userAnswers[index];
+            orderedCorrect[q.originalIndex] = userCorrect[index];
+        });
+
+        // Ensure we have all required arrays initialized
+        if (!Array.isArray(userAnswers) || !Array.isArray(userCorrect)) {
+            throw new Error('User answers not properly recorded');
+        }
+
+        // Clean and validate each question before saving
+        const validatedQuestions = quiz.questions.map((q, index) => {
+            // Ensure all question fields are defined
+            return {
+                questionText: q.questionText || 'Question text missing',
+                options: Array.isArray(q.options) ? q.options.map(opt => opt || 'Option missing') : [],
+                correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+                userAnswer: typeof userAnswers[index] === 'number' ? userAnswers[index] : -1,
+                isCorrect: Boolean(userCorrect[index])
+            };
+        });
+
         const attemptData = {
             userId: auth.currentUser.uid,
             quizId: quiz.id,
-            subjectId: currentSubjectId,
-            score: currentScore, // Use the currentScore that includes streak bonuses
-            timeTaken: timeTakenSeconds,
+            subjectId: currentSubjectId || 'unknown',
+            score: Math.round((correctAnswers / quiz.questions.length) * 100), // Base score as percentage
+            finalScore: currentScore || 0, // Score with streak bonus
+            timeTaken: timeTakenSeconds || 0,
             timestamp: serverTimestamp(),
             totalQuestions: quiz.questions.length,
-            correctAnswers: correctAnswers,
-            quizTitle: quiz.title,
+            correctAnswers: correctAnswers || 0,
+            quizTitle: quiz.title || 'Untitled Quiz',
             subjectTitle: document.querySelector('#quizTitle')?.textContent || 'Unknown Subject',
-            streakBonus: Math.min(streakCount * STREAK_BONUS, MAX_STREAK_BONUS),
-            score: Math.round((correctAnswers / quiz.questions.length) * 100) // Store score as percentage
+            streakBonus: Math.min(streakCount * STREAK_BONUS, MAX_STREAK_BONUS) || 0,
+            questions: validatedQuestions
         };
 
-    // Save attempt under the user's subcollection: users/{uid}/quizAttempts
-    const attemptsColRef = collection(db, 'users', auth.currentUser.uid, 'quizAttempts');
-    const docRef = await addDoc(attemptsColRef, attemptData);
-    console.log(`Quiz attempt saved under users/${auth.currentUser.uid}/quizAttempts with ID:`, docRef.id);
-    console.debug('Quiz attempt details:', { ...attemptData, timestamp: 'serverTimestamp' });
+        // Save attempt under the user's subcollection: users/{uid}/quizAttempts
+        const attemptsColRef = collection(db, 'users', auth.currentUser.uid, 'quizAttempts');
+        const docRef = await addDoc(attemptsColRef, attemptData);
+        console.log(`Quiz attempt saved under users/${auth.currentUser.uid}/quizAttempts with ID:`, docRef.id);
+        console.debug('Quiz attempt details:', { ...attemptData, timestamp: 'serverTimestamp' });
     } catch (error) {
         console.error('Error saving quiz attempt:', error);
+        
+        // Log detailed diagnostic information
+        console.debug('Quiz state at error:', {
+            quizId: quiz?.id,
+            questionsLength: quiz?.questions?.length,
+            userAnswersLength: userAnswers?.length,
+            userCorrectLength: userCorrect?.length,
+            currentScore,
+            streakCount,
+            timeRemaining,
+            auth: Boolean(auth.currentUser)
+        });
+
+        let errorMessage = 'There was a problem saving your quiz results.';
+        if (error.message.includes('invalid data')) {
+            errorMessage = 'Invalid quiz data detected. This might be due to a connection issue or browser refresh.';
+        } else if (error.code === 'permission-denied') {
+            errorMessage = 'You do not have permission to save quiz results. Please sign in again.';
+        }
+
+        await sweetAlertDarkTheme.fire({
+            icon: 'error',
+            title: 'Error Saving Quiz',
+            text: errorMessage,
+            footer: 'Please take a screenshot of your results before closing.',
+            showConfirmButton: true,
+            confirmButtonText: 'I understand'
+        });
+        throw error; // Re-throw to prevent continuing with completion flow
     }
     
-    // Clear saved progress on completion
-    if (quiz) {
-        clearProgress(quiz.id);
-    }
-    
-    // Get current stats
+        // Clear all saved data on completion
+        if (quiz) {
+            clearProgress(quiz.id);
+            // Clear quiz state to ensure fresh shuffle on next attempt
+            quiz = null;
+            currentQuestionIndex = 0;
+            userAnswers = [];
+            userCorrect = [];
+        }    // Get current stats
     const correctAnswers = userCorrect.filter(correct => correct).length;
     const timeTakenSeconds = 30 * 60 - timeRemaining;
     const minutes = Math.floor(timeTakenSeconds / 60);
@@ -951,10 +1095,9 @@ async function completeQuiz() {
     console.log('Attempting to update high score with:', {
         quizId: quiz.id,
         subjectId: currentSubjectId,
-        currentScore,
-        userName: auth.currentUser.displayName
+        currentScore
     });
-    const isHighScore = await updateHighScore(quiz.id, currentSubjectId, currentScore, auth.currentUser.displayName);
+    const isHighScore = await updateHighScore(quiz.id, currentSubjectId, currentScore);
     console.log('High score check result:', isHighScore ? 'New high score!' : 'Not a high score');
     
     // Get the current high score for comparison

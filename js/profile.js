@@ -79,9 +79,25 @@ async function loadUserProfile(user) {
     try {
         console.log('Loading profile data...');
         
+        // Get user document for additional info
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        const userData = userDoc.data();
+
         // Set basic user info
-        userAvatar.src = user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.displayName || 'User');
-        userName.textContent = user.displayName || 'User';
+        if (userData?.avatar) {
+            // Use avatar data from user document
+            userAvatar.style.backgroundColor = userData.avatar.backgroundColor;
+            userAvatar.textContent = userData.avatar.letter;
+        } else {
+            // Fallback avatar
+            const username = user.email.split('@')[0];
+            userAvatar.style.backgroundColor = '#4B5563';
+            userAvatar.textContent = username[0].toUpperCase();
+        }
+
+        // Set username and email
+        userName.textContent = userData?.username || user.email.split('@')[0];
         userEmail.textContent = user.email;
 
         // Get quiz attempts from user's subcollection with ordering
@@ -153,9 +169,19 @@ function displayRecentQuizzes(attempts) {
                 <td class="py-3 px-4 text-gray-400">
                     ${formatTime(attempt.timeTaken)}
                 </td>
+                <td class="py-3 px-4">
+                    ${attempt.questions ? `
+                        <button onclick="reviewQuizAttempt('${attempt.id}')" 
+                                class="px-3 py-1 bg-green-600 hover:bg-green-500 rounded text-sm font-medium transition-colors">
+                            Review
+                        </button>
+                    ` : `
+                        <span class="text-sm text-gray-500">No review available</span>
+                    `}
+                </td>
             </tr>
         `).join('')
-        : '<tr><td colspan="4" class="py-4 text-center text-gray-400">No recent quizzes</td></tr>';
+        : '<tr><td colspan="5" class="py-4 text-center text-gray-400">No recent quizzes</td></tr>';
 }
 
 // Display performance stats
@@ -321,7 +347,101 @@ function hideLoading() {
     mainContent.classList.remove('hidden');
 }
 
+// Show error using SweetAlert2
 function showError(message) {
-    // You can implement a proper error display here
-    alert(message);
+    Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: message,
+        confirmButtonColor: '#4ade80',
+        background: '#1f2937',
+        color: '#f3f4f6'
+    });
+}
+
+// Make reviewQuizAttempt available globally
+window.reviewQuizAttempt = async function(attemptId) {
+    try {
+        const user = auth.currentUser;
+        if (!user) {
+            showError('Please sign in to review quiz attempts');
+            return;
+        }
+
+        // Get the attempt document
+        const attemptDoc = await getDoc(doc(db, 'users', user.uid, 'quizAttempts', attemptId));
+        if (!attemptDoc.exists()) {
+            showError('Quiz attempt not found');
+            return;
+        }
+
+        const attempt = attemptDoc.data();
+        if (!attempt.questions) {
+            showError('This quiz attempt does not have review data available');
+            return;
+        }
+
+        // Create review content
+        const reviewContent = attempt.questions.map((q, index) => `
+            <div class="mb-6 p-4 bg-neutral-800 rounded-lg">
+                <div class="mb-3">
+                    <span class="text-gray-400">Question ${index + 1}:</span>
+                    <div class="text-white mt-1">${q.questionText}</div>
+                </div>
+                <div class="space-y-2 mt-3">
+                    ${q.options.map((option, optIndex) => `
+                        <div class="flex items-center p-2 rounded ${
+                            optIndex === q.correctAnswer && optIndex === q.userAnswer ? 'bg-green-600/20 border border-green-500' :
+                            optIndex === q.correctAnswer ? 'bg-green-600/20 border border-green-500' :
+                            optIndex === q.userAnswer ? 'bg-red-600/20 border border-red-500' :
+                            'bg-neutral-700/20'
+                        }">
+                            <div class="flex-1">${option}</div>
+                            ${optIndex === q.correctAnswer ? 
+                                '<span class="text-green-400">✓</span>' : 
+                                (optIndex === q.userAnswer ? '<span class="text-red-400">✗</span>' : '')}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+
+        // Show the review modal
+        await Swal.fire({
+            title: attempt.quizTitle,
+            html: `
+                <div class="text-left mb-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-gray-400">Score:</span>
+                        <span class="font-bold ${getScoreColorClass(attempt.score)}">${attempt.score}%</span>
+                    </div>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-gray-400">Date:</span>
+                        <span>${formatDate(attempt.timestamp.toDate())}</span>
+                    </div>
+                    <div class="flex justify-between items-center mb-6">
+                        <span class="text-gray-400">Time Taken:</span>
+                        <span>${formatTime(attempt.timeTaken)}</span>
+                    </div>
+                </div>
+                <div class="max-h-[60vh] overflow-y-auto px-4 -mx-4">
+                    ${reviewContent}
+                </div>
+            `,
+            width: '800px',
+            background: '#171717',
+            color: '#fff',
+            confirmButtonColor: '#4ade80',
+            confirmButtonText: 'Close',
+            showCloseButton: true,
+            customClass: {
+                container: 'quiz-review-modal',
+                popup: 'rounded-lg shadow-xl',
+                content: 'text-left'
+            }
+        });
+    } catch (error) {
+        console.error('Error reviewing quiz:', error);
+        showError('Failed to load quiz review');
+    }
 }
