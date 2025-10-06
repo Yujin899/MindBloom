@@ -224,7 +224,7 @@ async function updateHighScore(quizId, subjectId, newScore) {
             await updateDoc(quizRef, {
                 lastAttempt: {
                     score: newScore,
-                    player: userName,
+                    player: username,
                     date: serverTimestamp()
                 }
             });
@@ -861,7 +861,7 @@ function handleNextButton(e) {
     
     // If in review mode and at last question, this should never be called
     // as the button should have a direct onclick handler to return home
-    if (quiz.isReviewMode && currentQuestionIndex === quiz.questions.length - 1) {
+    if (quiz && quiz.isReviewMode && currentQuestionIndex === quiz.questions.length - 1) {
         window.location.href = './index.html';
         return;
     };
@@ -1077,27 +1077,19 @@ async function completeQuiz() {
         throw error; // Re-throw to prevent continuing with completion flow
     }
     
-        // Clear all saved data on completion
-        if (quiz) {
-            clearProgress(quiz.id);
-            // Clear quiz state to ensure fresh shuffle on next attempt
-            quiz = null;
-            currentQuestionIndex = 0;
-            userAnswers = [];
-            userCorrect = [];
-        }    // Get current stats
-    const correctAnswers = userCorrect.filter(correct => correct).length;
-    const timeTakenSeconds = 30 * 60 - timeRemaining;
-    const minutes = Math.floor(timeTakenSeconds / 60);
-    const seconds = timeTakenSeconds % 60;
-    
-    // Check for high score (use currentScore which includes streak bonuses)
-    console.log('Attempting to update high score with:', {
-        quizId: quiz.id,
-        subjectId: currentSubjectId,
-        currentScore
-    });
-    const isHighScore = await updateHighScore(quiz.id, currentSubjectId, currentScore);
+        // Get current stats before clearing quiz data
+        const correctAnswers = userCorrect.filter(correct => correct).length;
+        const timeTakenSeconds = 30 * 60 - timeRemaining;
+        const minutes = Math.floor(timeTakenSeconds / 60);
+        const seconds = timeTakenSeconds % 60;
+        
+        // Check for high score (use currentScore which includes streak bonuses)
+        console.log('Attempting to update high score with:', {
+            quizId: quiz.id,
+            subjectId: currentSubjectId,
+            currentScore
+        });
+        const isHighScore = await updateHighScore(quiz.id, currentSubjectId, currentScore);
     console.log('High score check result:', isHighScore ? 'New high score!' : 'Not a high score');
     
     // Get the current high score for comparison
@@ -1161,6 +1153,16 @@ async function completeQuiz() {
             window.location.href = 'index.html';
         }
     });
+    
+    // Clear all saved data after completion flow is finished
+    if (quiz) {
+        clearProgress(quiz.id);
+        // Clear quiz state to ensure fresh shuffle on next attempt
+        quiz = null;
+        currentQuestionIndex = 0;
+        userAnswers = [];
+        userCorrect = [];
+    }
 }
 
 function calculateScore() {
