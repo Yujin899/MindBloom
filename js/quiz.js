@@ -952,7 +952,21 @@ function startTimer() {
 function updateTimerDisplay() {
     const minutes = Math.floor(timeRemaining / 60);
     const seconds = timeRemaining % 60;
-    timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    const timerElement = document.getElementById('timer');
+    
+    // Update the time display
+    timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    // Update color based on time remaining
+    if (minutes < 10) {
+        if (minutes < 5) {
+            timerElement.className = 'text-xl sm:text-2xl lg:text-3xl font-mono font-bold text-red-500 transition-colors duration-300';
+        } else {
+            timerElement.className = 'text-xl sm:text-2xl lg:text-3xl font-mono font-bold text-yellow-500 transition-colors duration-300';
+        }
+    } else {
+        timerElement.className = 'text-xl sm:text-2xl lg:text-3xl font-mono font-bold text-green-400 transition-colors duration-300';
+    }
 }
 
 async function completeQuiz() {
