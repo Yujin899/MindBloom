@@ -157,12 +157,7 @@ function displayRecentQuizzes(attempts) {
     recentQuizzesList.innerHTML = attempts.length > 0 
         ? attempts.map(attempt => `
             <tr class="border-b border-neutral-700 hover:bg-neutral-700/50">
-                <td class="py-3 px-4">
-                    <div class="flex flex-col">
-                        <span class="font-medium text-white">${attempt.quizTitle || 'Unknown Quiz'}</span>
-                        <span class="text-sm text-gray-400">Subject: ${attempt.subjectTitle || 'Unknown Subject'}</span>
-                    </div>
-                </td>
+                <td class="py-3 px-4">${attempt.quizTitle || 'Unknown Quiz'}</td>
                 <td class="py-3 px-4">
                     <span class="font-medium ${getScoreColorClass(attempt.score)}">
                         ${attempt.score}%
@@ -262,29 +257,19 @@ function createSubjectPerformanceChart(attempts) {
     // Group attempts by subject with improved subject tracking
     const subjectStats = {};
     let subjectTitles = {};
-    let subjectQuizDetails = {}; // Store quiz details for each subject
 
     (attempts || []).forEach(attempt => {
         const subject = attempt.subjectId || 'unknown';
         const subjectTitle = attempt.subjectTitle || `Subject ${subject}`;
-        const quizTitle = attempt.quizTitle || 'Unknown Quiz';
 
         if (!subjectStats[subject]) {
             subjectStats[subject] = { total: 0, count: 0, recentScore: null };
-            subjectQuizDetails[subject] = [];
         }
 
         subjectStats[subject].total += attempt.score || 0;
         subjectStats[subject].count++;
         subjectStats[subject].recentScore = attempt.score || 0;
         subjectTitles[subject] = subjectTitle;
-        
-        // Store quiz details for this subject
-        subjectQuizDetails[subject].push({
-            quizTitle: quizTitle,
-            score: attempt.score || 0,
-            date: attempt.timestamp?.toDate() || new Date()
-        });
     });
 
     const subjects = Object.keys(subjectStats);
@@ -302,29 +287,19 @@ function createSubjectPerformanceChart(attempts) {
         const stats = subjectStats[subject];
         const avg = Math.round(stats.total / stats.count);
         const recent = stats.recentScore;
-        const quizzes = subjectQuizDetails[subject];
-        
-        // Get unique quizzes for this subject
-        const uniqueQuizzes = [...new Set(quizzes.map(q => q.quizTitle))];
-        
         return `
-            <div class="p-4 border-b border-neutral-700 last:border-0">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex-1">
-                        <div class="font-medium text-white">${subjectTitles[subject]}</div>
-                        <div class="text-sm text-gray-400 mt-1">
-                            Quizzes: ${uniqueQuizzes.map(quiz => `<span class="inline-block bg-neutral-700 px-2 py-1 rounded text-xs mr-1 mb-1">${quiz}</span>`).join('')}
-                        </div>
+            <div class="flex items-center justify-between p-4 border-b border-neutral-700 last:border-0">
+                <div class="flex-1">
+                    <div class="font-medium text-white">${subjectTitles[subject]}</div>
+                </div>
+                <div class="flex items-center gap-6">
+                    <div class="text-sm">
+                        <span class="text-gray-400">Avg:</span>
+                        <span class="ml-1 font-medium ${avg >= 80 ? 'text-green-400' : avg >= 60 ? 'text-yellow-400' : 'text-red-400'}"> ${avg}%</span>
                     </div>
-                    <div class="flex items-center gap-6">
-                        <div class="text-sm">
-                            <span class="text-gray-400">Avg:</span>
-                            <span class="ml-1 font-medium ${avg >= 80 ? 'text-green-400' : avg >= 60 ? 'text-yellow-400' : 'text-red-400'}"> ${avg}%</span>
-                        </div>
-                        <div class="text-sm">
-                            <span class="text-gray-400">Recent:</span>
-                            <span class="ml-1 font-medium text-blue-400">${recent}%</span>
-                        </div>
+                    <div class="text-sm">
+                        <span class="text-gray-400">Recent:</span>
+                        <span class="ml-1 font-medium text-blue-400">${recent}%</span>
                     </div>
                 </div>
             </div>

@@ -5,6 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="./src/output.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    /* Global Custom Scrollbar Styles */
+    *::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    *::-webkit-scrollbar-track {
+      background: #262626;
+      border-radius: 4px;
+    }
+    
+    *::-webkit-scrollbar-thumb {
+      background: #525252;
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    
+    *::-webkit-scrollbar-thumb:hover {
+      background: #737373;
+    }
+    
+    /* Firefox Global Scrollbar */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: #525252 #262626;
+    }
+    
+    /* Body scrollbar for main page */
+    body::-webkit-scrollbar {
+      width: 10px;
+    }
+    
+    body::-webkit-scrollbar-track {
+      background: #1a1a1a;
+      border-radius: 5px;
+    }
+    
+    body::-webkit-scrollbar-thumb {
+      background: #404040;
+      border-radius: 5px;
+      transition: background 0.2s ease;
+    }
+    
+    body::-webkit-scrollbar-thumb:hover {
+      background: #525252;
+    }
+  </style>
 </head>
 <body class="bg-black flex items-center justify-center h-screen text-gray-100">
   <div class="bg-neutral-800 p-8 rounded-2xl shadow-lg w-96 text-center space-y-6">

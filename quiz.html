@@ -5,6 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="./src/output.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    /* Global Custom Scrollbar Styles */
+    *::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    *::-webkit-scrollbar-track {
+      background: #262626;
+      border-radius: 4px;
+    }
+    
+    *::-webkit-scrollbar-thumb {
+      background: #525252;
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    
+    *::-webkit-scrollbar-thumb:hover {
+      background: #737373;
+    }
+    
+    /* Firefox Global Scrollbar */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: #525252 #262626;
+    }
+    
+    /* Body scrollbar for main page */
+    body::-webkit-scrollbar {
+      width: 10px;
+    }
+    
+    body::-webkit-scrollbar-track {
+      background: #1a1a1a;
+      border-radius: 5px;
+    }
+    
+    body::-webkit-scrollbar-thumb {
+      background: #404040;
+      border-radius: 5px;
+      transition: background 0.2s ease;
+    }
+    
+    body::-webkit-scrollbar-thumb:hover {
+      background: #525252;
+    }
+  </style>
 </head>
 <body class="bg-black text-white min-h-screen">
   <!-- Initial Loading Screen -->
@@ -24,7 +71,7 @@
       
       <!-- Timer, Score, and Progress -->
       <div class="flex flex-col gap-4">
-        <div class="flex flex-col sm:flex-row justify-between items-center bg-neutral-800 p-4 sm:p-6 rounded-xl gap-3 sm:gap-0">
+        <div class="flex flex-col sm:flex-row justify-between items-center bg-neutral-800 px-4 py-3 sm:px-6 sm:py-4 rounded-xl gap-3 sm:gap-0">
           <!-- Drawer Toggle Button -->
           <button id="drawerToggle" class="lg:hidden flex items-center gap-2 text-green-400 hover:text-green-300 transition-colors order-1 sm:order-none">
             <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,7 +97,7 @@
 
         <!-- Score Section -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="bg-neutral-800 p-4 sm:p-6 rounded-xl">
+          <div class="bg-neutral-800 px-4 py-3 sm:px-6 sm:py-4 rounded-xl">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
@@ -65,7 +112,7 @@
             </div>
           </div>
 
-          <div class="bg-neutral-800 p-4 sm:p-6 rounded-xl">
+          <div class="bg-neutral-800 px-4 py-3 sm:px-6 sm:py-4 rounded-xl">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg class="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
@@ -85,11 +132,11 @@
       <!-- Question Navigation Drawer -->
       <div id="questionDrawer" class="fixed inset-0 lg:relative lg:inset-auto z-50 transform transition-transform duration-300 ease-in-out translate-x-[-100%] lg:translate-x-0">
         <!-- Backdrop -->
-        <div id="drawerBackdrop" class="fixed inset-0 bg-black bg-opacity-50 lg:hidden"></div>
+        <div id="drawerBackdrop" class="fixed inset-0 bg-black/40 backdrop-blur-sm lg:hidden transition-all duration-300 ease-out"></div>
         
         <!-- Drawer Content -->
-        <div class="relative w-64 h-full max-w-[80vw] bg-neutral-900 lg:bg-transparent overflow-y-auto">
-          <div class="sticky top-0 flex justify-between items-center p-4 bg-neutral-800 lg:hidden">
+        <div class="relative w-64 h-full max-w-[80vw] bg-neutral-900 lg:bg-transparent overflow-y-auto shadow-2xl lg:shadow-none">
+          <div class="sticky top-0 flex justify-between items-center p-4 bg-neutral-800 lg:hidden border-b border-neutral-700/50">
             <h2 class="text-lg font-semibold">Questions</h2>
             <button id="drawerClose" class="text-gray-400 hover:text-white">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
