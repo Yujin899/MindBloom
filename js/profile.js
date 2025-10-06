@@ -157,7 +157,12 @@ function displayRecentQuizzes(attempts) {
     recentQuizzesList.innerHTML = attempts.length > 0 
         ? attempts.map(attempt => `
             <tr class="border-b border-neutral-700 hover:bg-neutral-700/50">
-                <td class="py-3 px-4">${attempt.quizTitle || 'Unknown Quiz'}</td>
+                <td class="py-3 px-4">
+                    <div class="flex flex-col">
+                        <span class="font-medium text-white">${attempt.quizTitle || 'Unknown Quiz'}</span>
+                        <span class="text-sm text-gray-400">${attempt.subjectTitle || 'Unknown Subject'}</span>
+                    </div>
+                </td>
                 <td class="py-3 px-4">
                     <span class="font-medium ${getScoreColorClass(attempt.score)}">
                         ${attempt.score}%
